@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { fetchOrder, changeOrderStatus } from '../api/orders'
 import OrderStatusBadge from '../components/OrderStatusBadge.vue'
 import ChangeStatusModal from '../components/ChangeStatusModal.vue'
-import { STATUS_LABELS, ALLOWED_TRANSITIONS } from '../types'
+import { ALLOWED_TRANSITIONS } from '../types'
 import type { OrderDetail } from '../types'
 
 const route = useRoute()
