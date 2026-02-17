@@ -5,7 +5,7 @@ from app.core.config import settings
 celery_app = Celery(
     "ostrov",
     broker=settings.REDIS_URL,
-    backend=f"{settings.REDIS_URL}/1",
+    backend=settings.REDIS_URL.rsplit("/", 1)[0] + "/1",
 )
 
 celery_app.conf.update(
