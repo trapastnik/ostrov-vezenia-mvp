@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IKEA-39 Калининград — Интернет-магазин</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
+
+/* Header */
+.header { background: #003399; color: white; padding: 12px 0; position: sticky; top: 0; z-index: 100; }
+.header-inner { max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; }
+.logo { font-size: 22px; font-weight: 700; letter-spacing: 1px; }
+.logo span { color: #ffcc00; }
+.cart-btn { background: #ffcc00; color: #003399; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.cart-btn:hover { background: #ffd633; }
+.cart-count { background: #003399; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+
+/* Setup banner */
+.setup-banner { background: #fff3cd; border-bottom: 1px solid #ffc107; padding: 10px 20px; }
+.setup-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.setup-inner label { font-size: 13px; font-weight: 500; color: #856404; }
+.setup-inner input { border: 1px solid #ccc; border-radius: 6px; padding: 6px 10px; font-size: 13px; width: 280px; }
+.setup-inner button { background: #856404; color: white; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.setup-status { font-size: 12px; color: #155724; font-weight: 500; }
+
+/* Pages */
+.page { display: none; max-width: 1200px; margin: 0 auto; padding: 20px; }
+.page.active { display: block; }
+
+/* Catalog */
+.catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; margin-top: 20px; }
+.product-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: transform 0.2s, box-shadow 0.2s; }
+.product-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+.product-img { height: 180px; background: #e8e8e8; display: flex; align-items: center; justify-content: center; font-size: 48px; }
+.product-info { padding: 16px; }
+.product-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.product-desc { font-size: 13px; color: #666; margin-bottom: 12px; }
+.product-meta { display: flex; justify-content: space-between; align-items: center; }
+.product-price { font-size: 18px; font-weight: 700; color: #003399; }
+.product-weight { font-size: 12px; color: #999; }
+.add-btn { background: #003399; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; width: 100%; margin-top: 12px; }
+.add-btn:hover { background: #0044cc; }
+.add-btn.added { background: #28a745; }
+
+/* Cart */
+.cart-items { margin-top: 20px; }
+.cart-item { background: white; border-radius: 10px; padding: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 16px; }
+.cart-item-emoji { font-size: 36px; width: 60px; text-align: center; }
+.cart-item-info { flex: 1; }
+.cart-item-name { font-weight: 600; font-size: 15px; }
+.cart-item-price { color: #003399; font-weight: 600; margin-top: 2px; }
+.cart-item-qty { display: flex; align-items: center; gap: 8px; }
+.qty-btn { width: 30px; height: 30px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+.qty-btn:hover { background: #f0f0f0; }
+.cart-item-remove { color: #dc3545; cursor: pointer; font-size: 13px; border: none; background: none; }
+.cart-summary { background: white; border-radius: 10px; padding: 20px; margin-top: 20px; }
+.cart-total { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+.checkout-btn { background: #ffcc00; color: #003399; border: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; }
+.checkout-btn:hover { background: #ffd633; }
+.empty-cart { text-align: center; padding: 60px 20px; color: #999; }
+
+/* Checkout */
+.checkout-grid { display: grid; grid-template-columns: 1fr 380px; gap: 24px; margin-top: 20px; }
+@media (max-width: 800px) { .checkout-grid { grid-template-columns: 1fr; } }
+.checkout-section { background: white; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+.checkout-section h3 { font-size: 16px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 4px; }
+.form-group input { width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+.form-group input:focus { outline: none; border-color: #003399; box-shadow: 0 0 0 3px rgba(0,51,153,0.1); }
+
+.delivery-calc { background: #f0f7ff; border-radius: 8px; padding: 16px; margin-top: 12px; }
+.delivery-calc.loading { opacity: 0.6; }
+.delivery-calc.error { background: #fff0f0; }
+.delivery-cost { font-size: 15px; font-weight: 600; color: #003399; }
+.delivery-days { font-size: 13px; color: #666; margin-top: 4px; }
+.delivery-breakdown { font-size: 13px; color: #555; margin-top: 8px; }
+.delivery-breakdown div { display: flex; justify-content: space-between; padding: 2px 0; }
+
+.order-summary { position: sticky; top: 80px; }
+.order-summary .summary-item { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; }
+.order-summary .summary-total { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; padding: 12px 0 0; border-top: 2px solid #eee; margin-top: 8px; }
+.place-order-btn { background: #28a745; color: white; border: none; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; margin-top: 16px; }
+.place-order-btn:hover { background: #218838; }
+.place-order-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+/* Order success / tracking */
+.success-page { text-align: center; padding: 40px 20px; }
+.success-icon { font-size: 64px; margin-bottom: 16px; }
+.success-title { font-size: 24px; font-weight: 700; color: #28a745; margin-bottom: 8px; }
+.success-subtitle { font-size: 15px; color: #666; margin-bottom: 24px; }
+.order-id-box { background: #f0f7ff; border-radius: 8px; padding: 16px; display: inline-block; margin-bottom: 24px; }
+.order-id-box code { font-size: 14px; color: #003399; font-weight: 600; }
+
+.tracking-card { background: white; border-radius: 10px; padding: 24px; max-width: 600px; margin: 20px auto; text-align: left; }
+.tracking-status { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+.tracking-track { font-size: 13px; color: #666; margin-bottom: 20px; }
+.timeline { position: relative; padding-left: 24px; }
+.timeline::before { content: ''; position: absolute; left: 7px; top: 4px; bottom: 4px; width: 2px; background: #ddd; }
+.timeline-item { position: relative; padding-bottom: 20px; }
+.timeline-item:last-child { padding-bottom: 0; }
+.timeline-dot { position: absolute; left: -20px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: #003399; border: 2px solid white; box-shadow: 0 0 0 2px #003399; }
+.timeline-item:not(:first-child) .timeline-dot { background: #ddd; box-shadow: 0 0 0 2px #ddd; }
+.timeline-status { font-size: 14px; font-weight: 600; }
+.timeline-comment { font-size: 13px; color: #666; }
+.timeline-date { font-size: 12px; color: #999; margin-top: 2px; }
+
+.back-link { color: #003399; text-decoration: none; font-size: 14px; cursor: pointer; }
+.back-link:hover { text-decoration: underline; }
+
+/* Notifications */
+.toast { position: fixed; bottom: 20px; right: 20px; background: #28a745; color: white; padding: 12px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; z-index: 1000; transform: translateY(100px); opacity: 0; transition: all 0.3s; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.error { background: #dc3545; }
+
+.status-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+
+.limit-hint { font-size: 12px; color: #856404; background: #fff3cd; padding: 8px 12px; border-radius: 6px; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-inner">
+    <div class="logo">IKEA<span>-39</span> Калининград</div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <a onclick="showPage('catalog')" class="back-link" style="color:white">Каталог</a>
+      <a onclick="showPage('my-orders')" class="back-link" style="color:white">Мои заказы</a>
+      <button class="cart-btn" onclick="showPage('cart')">
+        🛒 Корзина <span class="cart-count" id="cartCount">0</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- API Key setup -->
+<div class="setup-banner" id="setupBanner">
+  <div class="setup-inner">
+    <label>🔑 API-ключ магазина:</label>
+    <input type="text" id="apiKeyInput" placeholder="Вставьте API-ключ из админки" />
+    <button onclick="setApiKey()">Подключить</button>
+    <span class="setup-status" id="setupStatus"></span>
+  </div>
+</div>
+
+<!-- Page: Catalog -->
+<div class="page active" id="page-catalog">
+  <h2 style="font-size:24px;font-weight:700;">Каталог товаров</h2>
+  <p style="color:#666;margin-top:4px;">Мебель и товары для дома с доставкой по всей России</p>
+  <div class="limit-hint">📦 Ограничения: до 200$ (~18 500 ₽) и до 30 кг на один заказ (упрощённое таможенное оформление)</div>
+  <div class="catalog-grid" id="catalogGrid"></div>
+</div>
+
+<!-- Page: Cart -->
+<div class="page" id="page-cart">
+  <a onclick="showPage('catalog')" class="back-link">← В каталог</a>
+  <h2 style="font-size:24px;font-weight:700;margin-top:12px;">Корзина</h2>
+  <div id="cartContent"></div>
+</div>
+
+<!-- Page: Checkout -->
+<div class="page" id="page-checkout">
+  <a onclick="showPage('cart')" class="back-link">← В корзину</a>
+  <h2 style="font-size:24px;font-weight:700;margin-top:12px;">Оформление заказа</h2>
+  <div class="checkout-grid">
+    <div>
+      <div class="checkout-section">
+        <h3>📋 Данные получателя</h3>
+        <div class="form-group">
+          <label>ФИО</label>
+          <input type="text" id="recipientName" value="Иванов Пётр Сергеевич" />
+        </div>
+        <div class="form-group">
+          <label>Телефон</label>
+          <input type="tel" id="recipientPhone" value="+79261234567" />
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="recipientEmail" value="ivanov@test.ru" />
+        </div>
+        <div class="form-group">
+          <label>Адрес доставки</label>
+          <input type="text" id="recipientAddress" value="Москва, ул. Ленина, д. 1, кв. 5" />
+        </div>
+        <div class="form-group">
+          <label>Почтовый индекс</label>
+          <input type="text" id="recipientPostalCode" value="101000" maxlength="6" />
+        </div>
+      </div>
+
+      <div class="checkout-section">
+        <h3>🚚 Доставка</h3>
+        <div id="deliveryCalc">
+          <button onclick="calculateDelivery()" class="add-btn" style="margin-top:0">Рассчитать стоимость доставки</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="checkout-section order-summary">
+        <h3>📦 Ваш заказ</h3>
+        <div id="checkoutItems"></div>
+        <div id="checkoutTotals"></div>
+        <button class="place-order-btn" id="placeOrderBtn" onclick="placeOrder()" disabled>
+          Оформить заказ
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Page: Success -->
+<div class="page" id="page-success">
+  <div class="success-page">
+    <div class="success-icon">✅</div>
+    <div class="success-title">Заказ оформлен!</div>
+    <div class="success-subtitle">Ваш заказ принят и будет обработан в ближайшее время</div>
+    <div class="order-id-box">
+      <div style="font-size:12px;color:#666;margin-bottom:4px;">Номер заказа</div>
+      <code id="successOrderId"></code>
+    </div>
+    <div id="successDetails" style="max-width:500px;margin:0 auto;"></div>
+    <div style="margin-top:24px;">
+      <button onclick="trackLastOrder()" class="add-btn" style="width:auto;display:inline-block;margin-right:8px;">Отследить заказ</button>
+      <button onclick="showPage('catalog')" class="add-btn" style="width:auto;display:inline-block;background:#666;">Продолжить покупки</button>
+    </div>
+  </div>
+</div>
+
+<!-- Page: Tracking -->
+<div class="page" id="page-tracking">
+  <a onclick="showPage('my-orders')" class="back-link">← К моим заказам</a>
+  <h2 style="font-size:24px;font-weight:700;margin-top:12px;text-align:center;">Отслеживание заказа</h2>
+  <div id="trackingContent"></div>
+</div>
+
+<!-- Page: My Orders -->
+<div class="page" id="page-my-orders">
+  <a onclick="showPage('catalog')" class="back-link">← В каталог</a>
+  <h2 style="font-size:24px;font-weight:700;margin-top:12px;">Мои заказы</h2>
+  <div id="myOrdersList" style="margin-top:20px;"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = '/api/v1';
+let apiKey = localStorage.getItem('shop_api_key') || '';
+let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+let myOrders = JSON.parse(localStorage.getItem('my_orders') || '[]');
+let lastDeliveryCalc = null;
+let orderCounter = parseInt(localStorage.getItem('order_counter') || '1000');
+
+const STATUS_LABELS = {
+  accepted: 'Принят',
+  awaiting_pickup: 'Ожидает забора',
+  received_warehouse: 'На складе',
+  batch_forming: 'Формирование партии',
+  customs_presented: 'На таможне',
+  customs_cleared: 'Таможня пройдена',
+  awaiting_carrier: 'Ожидает отправки',
+  shipped: 'Отправлен',
+  in_transit: 'В пути',
+  delivered: 'Доставлен',
+  cancelled: 'Отменён',
+  problem: 'Проблема',
+};
+
+const PRODUCTS = [
+  { id: 1, sku: 'KLX-7777-W', name: 'KALLAX Стеллаж', desc: 'Белый, 77×77 см, 4 секции', price: 4999, weight: 12000, emoji: '🗄️' },
+  { id: 2, sku: 'MLM-8010-W', name: 'MALM Комод', desc: '4 ящика, белый, 80×100 см', price: 8999, weight: 25000, emoji: '🗃️' },
+  { id: 3, sku: 'PNG-0001-B', name: 'POÄNG Кресло', desc: 'Берёзовый шпон, подушка серая', price: 6499, weight: 8000, emoji: '🪑' },
+  { id: 4, sku: 'LCK-5555-W', name: 'LACK Столик', desc: 'Придиванный, белый, 55×55 см', price: 999, weight: 3500, emoji: '🪵' },
+  { id: 5, sku: 'KLP-0002-G', name: 'KLIPPAN Чехол', desc: 'Для дивана, хлопок, серый', price: 2999, weight: 2000, emoji: '🛋️' },
+  { id: 6, sku: 'HMN-7416-W', name: 'HEMNES Зеркало', desc: 'Белая морилка, 74×165 см', price: 3499, weight: 5000, emoji: '🪞' },
+  { id: 7, sku: 'ALX-3670-W', name: 'ALEX Тумба', desc: 'С ящиками, белый, 36×70 см', price: 5999, weight: 15000, emoji: '📦' },
+  { id: 8, sku: 'FJK-0009-G', name: 'FEJKA Растение', desc: 'Искусственное, в горшке, 9 см', price: 499, weight: 500, emoji: '🌿' },
+  { id: 9, sku: 'I365-003-S', name: 'IKEA 365+ Набор', desc: 'Контейнеры для хранения, 3 шт', price: 799, weight: 1200, emoji: '🍱' },
+  { id: 10, sku: 'RBB-2130-B', name: 'RIBBA Рамка', desc: 'Чёрная, 21×30 см', price: 399, weight: 800, emoji: '🖼️' },
+  { id: 11, sku: 'SKD-5656-W', name: 'SKÅDIS Панель', desc: 'Настенная, белая, 56×56 см', price: 1299, weight: 2500, emoji: '📌' },
+  { id: 12, sku: 'SMG-0060-W', name: 'SMÅGÖRA Полка', desc: 'Настенная, белый, 60 см', price: 1799, weight: 3000, emoji: '📚' },
+];
+
+// --- Init ---
+function init() {
+  if (apiKey) {
+    document.getElementById('apiKeyInput').value = apiKey;
+    document.getElementById('setupStatus').textContent = '✓ Подключено';
+  }
+  renderCatalog();
+  updateCartCount();
+}
+
+// --- API Key ---
+function setApiKey() {
+  apiKey = document.getElementById('apiKeyInput').value.trim();
+  if (!apiKey) { toast('Введите API-ключ', true); return; }
+  localStorage.setItem('shop_api_key', apiKey);
+  document.getElementById('setupStatus').textContent = '✓ Подключено';
+  toast('API-ключ сохранён');
+}
+
+function apiHeaders() {
+  return { 'Content-Type': 'application/json', 'X-API-Key': apiKey };
+}
+
+// --- Pages ---
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (name === 'cart') renderCart();
+  if (name === 'checkout') renderCheckout();
+  if (name === 'my-orders') renderMyOrders();
+  window.scrollTo(0, 0);
+}
+
+// --- Catalog ---
+function renderCatalog() {
+  const grid = document.getElementById('catalogGrid');
+  grid.innerHTML = PRODUCTS.map(p => `
+    <div class="product-card">
+      <div class="product-img">${p.emoji}</div>
+      <div class="product-info">
+        <div class="product-name">${p.name}</div>
+        <div style="font-size:11px;color:#999;font-family:monospace;margin-bottom:2px;">${p.sku}</div>
+        <div class="product-desc">${p.desc}</div>
+        <div class="product-meta">
+          <div class="product-price">${formatPrice(p.price)}</div>
+          <div class="product-weight">${(p.weight / 1000).toFixed(1)} кг</div>
+        </div>
+        <button class="add-btn" onclick="addToCart(${p.id})" id="addBtn${p.id}">В корзину</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// --- Cart ---
+function addToCart(productId) {
+  if (!apiKey) { toast('Сначала введите API-ключ', true); return; }
+  const product = PRODUCTS.find(p => p.id === productId);
+  const existing = cart.find(c => c.id === productId);
+  if (existing) {
+    existing.qty++;
+  } else {
+    cart.push({ ...product, qty: 1 });
+  }
+  saveCart();
+  updateCartCount();
+  const btn = document.getElementById('addBtn' + productId);
+  btn.textContent = '✓ Добавлено';
+  btn.classList.add('added');
+  setTimeout(() => { btn.textContent = 'В корзину'; btn.classList.remove('added'); }, 1500);
+  toast(`${product.name} добавлен в корзину`);
+}
+
+function removeFromCart(productId) {
+  cart = cart.filter(c => c.id !== productId);
+  saveCart();
+  updateCartCount();
+  renderCart();
+}
+
+function changeQty(productId, delta) {
+  const item = cart.find(c => c.id === productId);
+  if (!item) return;
+  item.qty += delta;
+  if (item.qty <= 0) return removeFromCart(productId);
+  saveCart();
+  updateCartCount();
+  renderCart();
+}
+
+function saveCart() {
+  localStorage.setItem('cart', JSON.stringify(cart));
+}
+
+function updateCartCount() {
+  document.getElementById('cartCount').textContent = cart.reduce((s, c) => s + c.qty, 0);
+}
+
+function cartTotal() { return cart.reduce((s, c) => s + c.price * c.qty, 0); }
+function cartWeight() { return cart.reduce((s, c) => s + c.weight * c.qty, 0); }
+
+function renderCart() {
+  const content = document.getElementById('cartContent');
+  if (cart.length === 0) {
+    content.innerHTML = '<div class="empty-cart"><div style="font-size:48px;margin-bottom:16px;">🛒</div><div style="font-size:18px;font-weight:600;">Корзина пуста</div><div style="margin-top:8px;">Добавьте товары из каталога</div><button onclick="showPage(\'catalog\')" class="add-btn" style="width:auto;margin-top:16px;display:inline-block;">Перейти в каталог</button></div>';
+    return;
+  }
+
+  const total = cartTotal();
+  const weight = cartWeight();
+  const overValue = total > 18500;
+  const overWeight = weight > 30000;
+
+  content.innerHTML = `
+    <div class="cart-items">
+      ${cart.map(c => `
+        <div class="cart-item">
+          <div class="cart-item-emoji">${c.emoji}</div>
+          <div class="cart-item-info">
+            <div class="cart-item-name">${c.name}</div>
+            <div class="cart-item-price">${formatPrice(c.price * c.qty)}</div>
+            <div style="font-size:12px;color:#999;">${(c.weight / 1000).toFixed(1)} кг × ${c.qty}</div>
+          </div>
+          <div class="cart-item-qty">
+            <button class="qty-btn" onclick="changeQty(${c.id}, -1)">−</button>
+            <span style="font-weight:600;min-width:20px;text-align:center;">${c.qty}</span>
+            <button class="qty-btn" onclick="changeQty(${c.id}, 1)">+</button>
+          </div>
+          <button class="cart-item-remove" onclick="removeFromCart(${c.id})">✕ Удалить</button>
+        </div>
+      `).join('')}
+    </div>
+    <div class="cart-summary">
+      ${overValue ? '<div style="color:#dc3545;font-size:14px;margin-bottom:8px;">⚠️ Сумма превышает лимит 200$ (~18 500 ₽). Уменьшите количество товаров.</div>' : ''}
+      ${overWeight ? '<div style="color:#dc3545;font-size:14px;margin-bottom:8px;">⚠️ Вес превышает лимит 30 кг. Уменьшите количество товаров.</div>' : ''}
+      <div class="cart-total">
+        <span>Итого товары:</span>
+        <span>${formatPrice(total)}</span>
+      </div>
+      <div style="font-size:13px;color:#666;margin-bottom:16px;">Вес: ${(weight / 1000).toFixed(1)} кг</div>
+      <button class="checkout-btn" onclick="showPage('checkout')" ${overValue || overWeight ? 'disabled style="background:#ccc;cursor:not-allowed;"' : ''}>
+        Перейти к оформлению
+      </button>
+    </div>
+  `;
+}
+
+// --- Checkout ---
+function renderCheckout() {
+  lastDeliveryCalc = null;
+  const itemsDiv = document.getElementById('checkoutItems');
+  itemsDiv.innerHTML = cart.map(c => `
+    <div class="summary-item">
+      <span>${c.emoji} ${c.name} × ${c.qty}</span>
+      <span>${formatPrice(c.price * c.qty)}</span>
+    </div>
+  `).join('');
+  updateCheckoutTotals();
+
+  document.getElementById('deliveryCalc').innerHTML = `
+    <button onclick="calculateDelivery()" class="add-btn" style="margin-top:0">Рассчитать стоимость доставки</button>
+  `;
+  document.getElementById('placeOrderBtn').disabled = true;
+}
+
+function updateCheckoutTotals() {
+  const totals = document.getElementById('checkoutTotals');
+  const goodsTotal = cartTotal();
+  let html = `
+    <div class="summary-item"><span>Товары:</span><span>${formatPrice(goodsTotal)}</span></div>
+    <div class="summary-item"><span>Вес:</span><span>${(cartWeight() / 1000).toFixed(1)} кг</span></div>
+  `;
+  if (lastDeliveryCalc) {
+    html += `
+      <div class="summary-item"><span>Доставка (Почта России):</span><span>${formatPrice(lastDeliveryCalc.delivery_cost_kopecks / 100)}</span></div>
+      <div class="summary-item"><span>Таможенное оформление:</span><span>${formatPrice(lastDeliveryCalc.customs_fee_kopecks / 100)}</span></div>
+      <div class="summary-total">
+        <span>Итого к оплате:</span>
+        <span>${formatPrice(goodsTotal + lastDeliveryCalc.total_cost_kopecks / 100)}</span>
+      </div>
+    `;
+  }
+  totals.innerHTML = html;
+}
+
+async function calculateDelivery() {
+  if (!apiKey) { toast('Введите API-ключ магазина', true); return; }
+  const postalCode = document.getElementById('recipientPostalCode').value.trim();
+  if (!postalCode || postalCode.length < 5) { toast('Введите почтовый индекс', true); return; }
+
+  const calcDiv = document.getElementById('deliveryCalc');
+  calcDiv.innerHTML = '<div class="delivery-calc loading">⏳ Рассчитываем стоимость доставки...</div>';
+
+  try {
+    const resp = await fetch(API_BASE + '/delivery/calculate', {
+      method: 'POST',
+      headers: apiHeaders(),
+      body: JSON.stringify({
+        postal_code: postalCode,
+        weight_grams: cartWeight(),
+        total_amount_kopecks: cartTotal() * 100,
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || 'Ошибка');
+
+    if (!data.available) {
+      calcDiv.innerHTML = `
+        <div class="delivery-calc error">
+          ❌ Доставка недоступна: ${data.rejection_reason || 'неизвестная причина'}
+          <button onclick="calculateDelivery()" class="add-btn" style="margin-top:12px;background:#dc3545;">Попробовать снова</button>
+        </div>`;
+      document.getElementById('placeOrderBtn').disabled = true;
+      return;
+    }
+
+    lastDeliveryCalc = data;
+    calcDiv.innerHTML = `
+      <div class="delivery-calc">
+        <div class="delivery-cost">🚚 Доставка: ${formatPrice(data.delivery_cost_kopecks / 100)}</div>
+        <div class="delivery-days">Срок: ${data.delivery_days_min}–${data.delivery_days_max} рабочих дней</div>
+        <div class="delivery-breakdown">
+          <div><span>Почта России:</span><span>${formatPrice(data.delivery_cost_kopecks / 100)}</span></div>
+          <div><span>Таможенное оформление:</span><span>${formatPrice(data.customs_fee_kopecks / 100)}</span></div>
+          <div style="font-weight:600;border-top:1px solid #ccd;padding-top:4px;margin-top:4px;"><span>Итого за доставку:</span><span>${formatPrice(data.total_cost_kopecks / 100)}</span></div>
+        </div>
+        <button onclick="calculateDelivery()" class="add-btn" style="margin-top:12px;background:#666;">Пересчитать</button>
+      </div>`;
+    updateCheckoutTotals();
+    document.getElementById('placeOrderBtn').disabled = false;
+  } catch (e) {
+    calcDiv.innerHTML = `
+      <div class="delivery-calc error">
+        ❌ ${e.message}
+        <button onclick="calculateDelivery()" class="add-btn" style="margin-top:12px;background:#dc3545;">Попробовать снова</button>
+      </div>`;
+    document.getElementById('placeOrderBtn').disabled = true;
+  }
+}
+
+async function placeOrder() {
+  if (!apiKey) { toast('Введите API-ключ', true); return; }
+  if (!lastDeliveryCalc) { toast('Сначала рассчитайте доставку', true); return; }
+
+  const name = document.getElementById('recipientName').value.trim();
+  const phone = document.getElementById('recipientPhone').value.trim();
+  const email = document.getElementById('recipientEmail').value.trim();
+  const address = document.getElementById('recipientAddress').value.trim();
+  const postalCode = document.getElementById('recipientPostalCode').value.trim();
+
+  if (!name || !phone || !address || !postalCode) {
+    toast('Заполните все обязательные поля', true); return;
+  }
+
+  const btn = document.getElementById('placeOrderBtn');
+  btn.disabled = true;
+  btn.textContent = 'Оформляем...';
+
+  orderCounter++;
+  localStorage.setItem('order_counter', orderCounter.toString());
+
+  const body = {
+    external_order_id: `WEB-${orderCounter}`,
+    recipient: { name, phone, email: email || null, address, postal_code: postalCode },
+    items: cart.map(c => ({
+      name: c.name,
+      sku: c.sku,
+      quantity: c.qty,
+      price_kopecks: c.price * 100,
+      weight_grams: c.weight,
+    })),
+  };
+
+  try {
+    const resp = await fetch(API_BASE + '/orders', {
+      method: 'POST',
+      headers: apiHeaders(),
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || 'Ошибка создания заказа');
+
+    // Save order locally
+    myOrders.unshift({
+      id: data.id,
+      external_order_id: data.external_order_id,
+      status: data.status,
+      total: data.total_amount_kopecks + data.delivery_cost_kopecks + data.customs_fee_kopecks,
+      created_at: data.created_at,
+      recipient_name: data.recipient_name,
+    });
+    localStorage.setItem('my_orders', JSON.stringify(myOrders));
+
+    // Show success
+    document.getElementById('successOrderId').textContent = data.external_order_id + ' (' + data.id.slice(0, 8) + '...)';
+    document.getElementById('successDetails').innerHTML = `
+      <div style="text-align:left;background:white;border-radius:10px;padding:16px;margin-top:16px;">
+        <div class="summary-item"><span>Товары:</span><span>${formatPrice(data.total_amount_kopecks / 100)}</span></div>
+        <div class="summary-item"><span>Доставка:</span><span>${formatPrice(data.delivery_cost_kopecks / 100)}</span></div>
+        <div class="summary-item"><span>Таможенное оформление:</span><span>${formatPrice(data.customs_fee_kopecks / 100)}</span></div>
+        <div class="summary-total"><span>Итого:</span><span>${formatPrice((data.total_amount_kopecks + data.delivery_cost_kopecks + data.customs_fee_kopecks) / 100)}</span></div>
+        <div style="margin-top:12px;font-size:13px;color:#666;">Статус: ${STATUS_LABELS[data.status] || data.status}</div>
+      </div>
+    `;
+
+    // Clear cart
+    cart = [];
+    saveCart();
+    updateCartCount();
+    showPage('success');
+  } catch (e) {
+    toast(e.message, true);
+    btn.disabled = false;
+    btn.textContent = 'Оформить заказ';
+  }
+}
+
+// --- My Orders ---
+function renderMyOrders() {
+  const list = document.getElementById('myOrdersList');
+  if (myOrders.length === 0) {
+    list.innerHTML = '<div class="empty-cart"><div style="font-size:48px;margin-bottom:16px;">📋</div><div style="font-size:18px;font-weight:600;">Нет заказов</div><div style="margin-top:8px;">Оформите первый заказ в каталоге</div></div>';
+    return;
+  }
+  list.innerHTML = myOrders.map(o => `
+    <div class="cart-item" style="cursor:pointer;" onclick="trackOrder('${o.id}')">
+      <div class="cart-item-emoji">📦</div>
+      <div class="cart-item-info">
+        <div class="cart-item-name">${o.external_order_id}</div>
+        <div style="font-size:13px;color:#666;">${o.recipient_name}</div>
+        <div style="font-size:12px;color:#999;">${new Date(o.created_at).toLocaleString('ru-RU')}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-weight:600;color:#003399;">${formatPrice(o.total / 100)}</div>
+        <div class="status-badge" style="margin-top:4px;background:#e8f0fe;color:#003399;">${STATUS_LABELS[o.status] || o.status}</div>
+      </div>
+      <div style="color:#999;font-size:20px;">›</div>
+    </div>
+  `).join('');
+}
+
+// --- Tracking ---
+function trackLastOrder() {
+  if (myOrders.length > 0) trackOrder(myOrders[0].id);
+}
+
+async function trackOrder(orderId) {
+  showPage('tracking');
+  const content = document.getElementById('trackingContent');
+  content.innerHTML = '<div style="text-align:center;padding:40px;color:#999;">Загрузка...</div>';
+
+  try {
+    const resp = await fetch(API_BASE + '/orders/' + orderId + '/tracking', { headers: apiHeaders() });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || 'Ошибка');
+
+    // Update local status
+    const localOrder = myOrders.find(o => o.id === orderId);
+
+    content.innerHTML = `
+      <div class="tracking-card">
+        <div class="tracking-status">${STATUS_LABELS[data.status] || data.status}</div>
+        <div class="tracking-track">${data.track_number ? 'Трек-номер: ' + data.track_number : 'Трек-номер ещё не присвоен'}</div>
+        ${localOrder ? `<div style="font-size:13px;color:#666;margin-bottom:16px;">Заказ: ${localOrder.external_order_id}</div>` : ''}
+        <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">История</h4>
+        <div class="timeline">
+          ${data.history.slice().reverse().map((h, i) => `
+            <div class="timeline-item">
+              <div class="timeline-dot" ${i > 0 ? 'style="background:#ddd;box-shadow:0 0 0 2px #ddd;"' : ''}></div>
+              <div class="timeline-status">${STATUS_LABELS[h.new_status] || h.new_status}</div>
+              ${h.comment ? `<div class="timeline-comment">${h.comment}</div>` : ''}
+              <div class="timeline-date">${new Date(h.created_at).toLocaleString('ru-RU')}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:16px;">
+        <button onclick="trackOrder('${orderId}')" class="add-btn" style="width:auto;display:inline-block;background:#666;">Обновить</button>
+      </div>
+    `;
+
+    if (localOrder) {
+      localOrder.status = data.status;
+      localStorage.setItem('my_orders', JSON.stringify(myOrders));
+    }
+  } catch (e) {
+    content.innerHTML = `<div style="text-align:center;padding:40px;color:#dc3545;">❌ ${e.message}</div>`;
+  }
+}
+
+// --- Helpers ---
+function formatPrice(rub) {
+  return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(rub);
+}
+
+function toast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+// --- Start ---
+init();
+</script>
+</body>
+</html>
