@@ -19,6 +19,7 @@ const router = createRouter({
         { path: 'batches', name: 'batches', component: () => import('../pages/BatchesListPage.vue') },
         { path: 'shops', name: 'shops', component: () => import('../pages/ShopsListPage.vue') },
         { path: 'shops/:id', name: 'shop-detail', component: () => import('../pages/ShopDetailPage.vue') },
+        { path: 'pochta', name: 'pochta', component: () => import('../pages/PochtaTestPage.vue') },
       ],
     },
   ],

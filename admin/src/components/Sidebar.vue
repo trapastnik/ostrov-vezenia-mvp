@@ -15,6 +15,7 @@ const navItems = [
   { name: 'Заказы', path: '/orders', icon: '📦' },
   { name: 'Партии', path: '/batches', icon: '📋' },
   { name: 'Магазины', path: '/shops', icon: '🏪', admin: true },
+  { name: 'Почта API', path: '/pochta', icon: '📮', admin: true },
 ]
 </script>
 
