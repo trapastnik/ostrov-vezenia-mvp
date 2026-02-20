@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_access_token, verify_password
-from app.main import limiter
+from app.core.limiter import limiter
 from app.models.operator import Operator
 from app.schemas.auth import LoginRequest, OperatorInfo, TokenResponse
 
