@@ -48,7 +48,7 @@ class DeliveryService:
             )
 
         try:
-            tariff = await self._pochta.calculate_tariff_public(
+            tariff, _log = await self._pochta.calculate_tariff_public(
                 index_from=shop.sender_postal_code,
                 index_to=postal_code,
                 weight_grams=weight_grams,

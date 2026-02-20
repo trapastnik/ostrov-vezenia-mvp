@@ -209,12 +209,12 @@ class GroupingOptimizer:
 
         public_sum = 0
         for order in orders:
-            result = await self._pochta.calculate_tariff_public(
+            result, _log = await self._pochta.calculate_tariff_public(
                 sender_postal_code, order.recipient_postal_code, order.total_weight_grams
             )
             public_sum += result.total_kopecks
 
-        contract_result = await self._pochta.calculate_tariff_contract(
+        contract_result, _log = await self._pochta.calculate_tariff_contract(
             sender_postal_code, index_to, total_weight
         )
 
