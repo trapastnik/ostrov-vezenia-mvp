@@ -7,6 +7,8 @@ import {
   normalizePhone,
 } from '../api/pochta'
 import type { TariffCompareResult, AddressResult, FioResult, PhoneResult } from '../api/pochta'
+import ApiDebugPanel from '../components/ApiDebugPanel.vue'
+import type { ApiDebug } from '../components/ApiDebugPanel.vue'
 
 // --- Tabs ---
 const activeTab = ref<'tariff' | 'address' | 'fio' | 'phone'>('tariff')
@@ -18,20 +20,43 @@ const tariffWeight = ref(1000)
 const tariffLoading = ref(false)
 const tariffResult = ref<TariffCompareResult | null>(null)
 const tariffError = ref('')
+const tariffDebug = ref<ApiDebug | null>(null)
 
 async function calcTariff() {
   tariffLoading.value = true
   tariffResult.value = null
   tariffError.value = ''
+  tariffDebug.value = null
+  const reqBody = {
+    index_from: tariffFrom.value,
+    index_to: tariffTo.value,
+    weight_grams: tariffWeight.value,
+  }
+  const start = Date.now()
   try {
-    tariffResult.value = await compareTariffs({
-      index_from: tariffFrom.value,
-      index_to: tariffTo.value,
-      weight_grams: tariffWeight.value,
-    })
+    const data = await compareTariffs(reqBody)
+    tariffResult.value = data
+    tariffDebug.value = {
+      method: 'POST',
+      url: '/api/v1/admin/pochta/tariff-compare',
+      requestBody: reqBody,
+      responseStatus: 200,
+      responseBody: data,
+      durationMs: Date.now() - start,
+      isError: false,
+    }
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { detail?: string } } }
+    const err = e as { response?: { status?: number; data?: { detail?: string } } }
     tariffError.value = err.response?.data?.detail || 'Ошибка запроса'
+    tariffDebug.value = {
+      method: 'POST',
+      url: '/api/v1/admin/pochta/tariff-compare',
+      requestBody: reqBody,
+      responseStatus: err.response?.status ?? null,
+      responseBody: err.response?.data ?? { error: tariffError.value },
+      durationMs: Date.now() - start,
+      isError: true,
+    }
   } finally {
     tariffLoading.value = false
   }
@@ -42,16 +67,39 @@ const addressInput = ref('Москва, ул. Ленина, д. 1, кв. 5')
 const addressLoading = ref(false)
 const addressResult = ref<AddressResult | null>(null)
 const addressError = ref('')
+const addressDebug = ref<ApiDebug | null>(null)
 
 async function checkAddress() {
   addressLoading.value = true
   addressResult.value = null
   addressError.value = ''
+  addressDebug.value = null
+  const reqBody = { address: addressInput.value }
+  const start = Date.now()
   try {
-    addressResult.value = await normalizeAddress(addressInput.value)
+    const data = await normalizeAddress(addressInput.value)
+    addressResult.value = data
+    addressDebug.value = {
+      method: 'POST',
+      url: '/api/v1/admin/pochta/normalize-address',
+      requestBody: reqBody,
+      responseStatus: 200,
+      responseBody: data,
+      durationMs: Date.now() - start,
+      isError: false,
+    }
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { detail?: string } } }
+    const err = e as { response?: { status?: number; data?: { detail?: string } } }
     addressError.value = err.response?.data?.detail || 'Ошибка запроса'
+    addressDebug.value = {
+      method: 'POST',
+      url: '/api/v1/admin/pochta/normalize-address',
+      requestBody: reqBody,
+      responseStatus: err.response?.status ?? null,
+      responseBody: err.response?.data ?? { error: addressError.value },
+      durationMs: Date.now() - start,
+      isError: true,
+    }
   } finally {
     addressLoading.value = false
   }
@@ -62,16 +110,39 @@ const fioInput = ref('Иванов Пётр Сергеевич')
 const fioLoading = ref(false)
 const fioResult = ref<FioResult | null>(null)
 const fioError = ref('')
+const fioDebug = ref<ApiDebug | null>(null)
 
 async function checkFio() {
   fioLoading.value = true
   fioResult.value = null
   fioError.value = ''
+  fioDebug.value = null
+  const reqBody = { fio: fioInput.value }
+  const start = Date.now()
   try {
-    fioResult.value = await normalizeFio(fioInput.value)
+    const data = await normalizeFio(fioInput.value)
+    fioResult.value = data
+    fioDebug.value = {
+      method: 'POST',
+      url: '/api/v1/admin/pochta/normalize-fio',
+      requestBody: reqBody,
+      responseStatus: 200,
+      responseBody: data,
+      durationMs: Date.now() - start,
+      isError: false,
+    }
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { detail?: string } } }
+    const err = e as { response?: { status?: number; data?: { detail?: string } } }
     fioError.value = err.response?.data?.detail || 'Ошибка запроса'
+    fioDebug.value = {
+      method: 'POST',
+      url: '/api/v1/admin/pochta/normalize-fio',
+      requestBody: reqBody,
+      responseStatus: err.response?.status ?? null,
+      responseBody: err.response?.data ?? { error: fioError.value },
+      durationMs: Date.now() - start,
+      isError: true,
+    }
   } finally {
     fioLoading.value = false
   }
@@ -82,21 +153,43 @@ const phoneInput = ref('+79261234567')
 const phoneLoading = ref(false)
 const phoneResult = ref<PhoneResult | null>(null)
 const phoneError = ref('')
+const phoneDebug = ref<ApiDebug | null>(null)
 
 async function checkPhone() {
   phoneLoading.value = true
   phoneResult.value = null
   phoneError.value = ''
+  phoneDebug.value = null
+  const reqBody = { phone: phoneInput.value }
+  const start = Date.now()
   try {
-    phoneResult.value = await normalizePhone(phoneInput.value)
+    const data = await normalizePhone(phoneInput.value)
+    phoneResult.value = data
+    phoneDebug.value = {
+      method: 'POST',
+      url: '/api/v1/admin/pochta/normalize-phone',
+      requestBody: reqBody,
+      responseStatus: 200,
+      responseBody: data,
+      durationMs: Date.now() - start,
+      isError: false,
+    }
   } catch (e: unknown) {
-    const err = e as { response?: { data?: { detail?: string } } }
+    const err = e as { response?: { status?: number; data?: { detail?: string } } }
     phoneError.value = err.response?.data?.detail || 'Ошибка запроса'
+    phoneDebug.value = {
+      method: 'POST',
+      url: '/api/v1/admin/pochta/normalize-phone',
+      requestBody: reqBody,
+      responseStatus: err.response?.status ?? null,
+      responseBody: err.response?.data ?? { error: phoneError.value },
+      durationMs: Date.now() - start,
+      isError: true,
+    }
   } finally {
     phoneLoading.value = false
   }
 }
-
 
 function kopecks(v: number): string {
   return (v / 100).toFixed(2) + ' руб.'
@@ -230,6 +323,8 @@ function kopecks(v: number): string {
           </div>
         </div>
       </div>
+
+      <ApiDebugPanel :debug="tariffDebug" />
     </div>
 
     <!-- Tab: Address -->
@@ -273,6 +368,8 @@ function kopecks(v: number): string {
           </div>
         </div>
       </div>
+
+      <ApiDebugPanel :debug="addressDebug" />
     </div>
 
     <!-- Tab: FIO -->
@@ -304,6 +401,8 @@ function kopecks(v: number): string {
           </div>
         </div>
       </div>
+
+      <ApiDebugPanel :debug="fioDebug" />
     </div>
 
     <!-- Tab: Phone -->
@@ -335,6 +434,8 @@ function kopecks(v: number): string {
           </div>
         </div>
       </div>
+
+      <ApiDebugPanel :debug="phoneDebug" />
     </div>
 
   </div>
