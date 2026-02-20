@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -5,9 +6,11 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./ostrov.db"
     REDIS_URL: str = "redis://redis:6379/0"
 
-    JWT_SECRET_KEY: str = "dev-secret-change-in-production"
+    JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 1440
+    JWT_EXPIRE_MINUTES: int = 60
+
+    CORS_ORIGINS: list[str] = ["https://admin.ostrov-vezeniya.ru", "https://api.ostrov-vezeniya.ru"]
 
     POCHTA_API_TOKEN: str = ""
     POCHTA_LOGIN: str = ""
@@ -23,6 +26,16 @@ class Settings(BaseSettings):
     POCHTA_MAIL_TYPE: str = "ONLINE_PARCEL"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @field_validator("JWT_SECRET_KEY")
+    @classmethod
+    def jwt_secret_must_be_strong(cls, v: str) -> str:
+        if not v or len(v) < 32:
+            raise ValueError(
+                "JWT_SECRET_KEY must be set in .env and be at least 32 characters long. "
+                "Generate one with: openssl rand -hex 32"
+            )
+        return v
 
 
 settings = Settings()

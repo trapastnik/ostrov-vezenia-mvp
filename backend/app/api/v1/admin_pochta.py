@@ -1,8 +1,12 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.dependencies import get_current_operator
 from app.models.operator import Operator
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin/pochta", tags=["admin-pochta"])
 
@@ -11,21 +15,21 @@ router = APIRouter(prefix="/admin/pochta", tags=["admin-pochta"])
 
 
 class TariffRequest(BaseModel):
-    index_from: str = "238311"
-    index_to: str
-    weight_grams: int
+    index_from: str = Field("238311", pattern=r"^\d{6}$")
+    index_to: str = Field(..., pattern=r"^\d{6}$")
+    weight_grams: int = Field(..., gt=0, le=30000)
 
 
 class AddressRequest(BaseModel):
-    address: str
+    address: str = Field(..., min_length=5, max_length=500)
 
 
 class FioRequest(BaseModel):
-    fio: str
+    fio: str = Field(..., min_length=2, max_length=200)
 
 
 class PhoneRequest(BaseModel):
-    phone: str
+    phone: str = Field(..., min_length=7, max_length=20)
 
 
 # --- Response schemas ---
@@ -118,7 +122,8 @@ async def tariff_public(
             weight_grams=body.weight_grams,
         )
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Pochta API error: {e}")
+        logger.error(f"Pochta API error in tariff_public: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Pochta API unavailable")
     return TariffResponse(
         cost_kopecks=result.cost_kopecks,
         vat_kopecks=result.vat_kopecks,
@@ -143,7 +148,8 @@ async def tariff_contract(
             weight_grams=body.weight_grams,
         )
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Pochta API error: {e}")
+        logger.error(f"Pochta API error in tariff_contract: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Pochta API unavailable")
     return TariffResponse(
         cost_kopecks=result.cost_kopecks,
         vat_kopecks=result.vat_kopecks,
@@ -164,7 +170,8 @@ async def normalize_address(
     try:
         result, log = await pochta.normalize_address(body.address)
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Pochta API error: {e}")
+        logger.error(f"Pochta API error in normalize_address: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Pochta API unavailable")
     return AddressResponse(
         index=result.index,
         region=result.region,
@@ -189,7 +196,8 @@ async def normalize_fio(
     try:
         result, log = await pochta.normalize_fio(body.fio)
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Pochta API error: {e}")
+        logger.error(f"Pochta API error in normalize_fio: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Pochta API unavailable")
     return FioResponse(
         surname=result.surname,
         name=result.name,
@@ -209,7 +217,8 @@ async def normalize_phone(
     try:
         result, log = await pochta.normalize_phone(body.phone)
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Pochta API error: {e}")
+        logger.error(f"Pochta API error in normalize_phone: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Pochta API unavailable")
     return PhoneResponse(
         country_code=result.country_code,
         city_code=result.city_code,
@@ -233,7 +242,8 @@ async def tariff_compare(
             weight_grams=body.weight_grams,
         )
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Pochta API error: {e}")
+        logger.error(f"Pochta API error in tariff_compare: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Pochta API unavailable")
     return TariffCompareResponse(
         public_cost_kopecks=result.public_cost_kopecks,
         public_vat_kopecks=result.public_vat_kopecks,
@@ -260,7 +270,8 @@ async def get_balance(
     try:
         balance = await pochta.get_balance()
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Pochta API error: {e}")
+        logger.error(f"Pochta API error in get_balance: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Pochta API unavailable")
     if balance is None:
         return BalanceResponse(
             balance_kopecks=None,
