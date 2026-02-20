@@ -5,12 +5,11 @@ import {
   normalizeAddress,
   normalizeFio,
   normalizePhone,
-  getBalance,
 } from '../api/pochta'
 import type { TariffCompareResult, AddressResult, FioResult, PhoneResult } from '../api/pochta'
 
 // --- Tabs ---
-const activeTab = ref<'tariff' | 'address' | 'fio' | 'phone' | 'balance'>('tariff')
+const activeTab = ref<'tariff' | 'address' | 'fio' | 'phone'>('tariff')
 
 // --- Tariff Compare ---
 const tariffFrom = ref('238311')
@@ -98,31 +97,6 @@ async function checkPhone() {
   }
 }
 
-// --- Balance ---
-const balanceLoading = ref(false)
-const balanceResult = ref<number | null>(null)
-const balanceError = ref('')
-const balanceUnavailable = ref('')
-
-async function checkBalance() {
-  balanceLoading.value = true
-  balanceResult.value = null
-  balanceError.value = ''
-  balanceUnavailable.value = ''
-  try {
-    const data = await getBalance()
-    if (!data.available) {
-      balanceUnavailable.value = data.message || 'Баланс недоступен для этого аккаунта'
-    } else {
-      balanceResult.value = data.balance_kopecks
-    }
-  } catch (e: unknown) {
-    const err = e as { response?: { data?: { detail?: string } } }
-    balanceError.value = err.response?.data?.detail || 'Ошибка запроса'
-  } finally {
-    balanceLoading.value = false
-  }
-}
 
 function kopecks(v: number): string {
   return (v / 100).toFixed(2) + ' руб.'
@@ -141,7 +115,6 @@ function kopecks(v: number): string {
           { key: 'address', label: 'Адрес' },
           { key: 'fio', label: 'ФИО' },
           { key: 'phone', label: 'Телефон' },
-          { key: 'balance', label: 'Баланс' },
         ]"
         :key="tab.key"
         @click="activeTab = tab.key as typeof activeTab"
@@ -364,35 +337,5 @@ function kopecks(v: number): string {
       </div>
     </div>
 
-    <!-- Tab: Balance -->
-    <div v-if="activeTab === 'balance'" class="max-w-2xl">
-      <div class="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 class="text-lg font-semibold mb-4">Баланс аккаунта Почты России</h3>
-        <button
-          @click="checkBalance"
-          :disabled="balanceLoading"
-          class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-        >
-          {{ balanceLoading ? 'Загрузка...' : 'Проверить баланс' }}
-        </button>
-
-        <div v-if="balanceError" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-          {{ balanceError }}
-        </div>
-
-        <div v-if="balanceUnavailable" class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 flex gap-3">
-          <span class="text-xl">⚠️</span>
-          <div>
-            <div class="font-medium mb-1">Баланс недоступен</div>
-            <div>{{ balanceUnavailable }}</div>
-          </div>
-        </div>
-
-        <div v-if="balanceResult !== null" class="mt-4 bg-gray-50 rounded-lg p-6 text-center">
-          <div class="text-sm text-gray-500 mb-1">Баланс</div>
-          <div class="text-3xl font-bold text-blue-700">{{ kopecks(balanceResult) }}</div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
