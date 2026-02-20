@@ -17,7 +17,9 @@ class UUIDType(TypeDecorator):
 
     def process_result_value(self, value, dialect):
         if value is not None:
-            return uuid.UUID(value)
+            if isinstance(value, uuid.UUID):
+                return value
+            return uuid.UUID(str(value))
         return value
 
 
