@@ -38,6 +38,30 @@ export interface BalanceResult {
   balance_kopecks: number
 }
 
+export interface TariffCompareResult {
+  public_cost_kopecks: number
+  public_vat_kopecks: number
+  public_total_kopecks: number
+  contract_cost_kopecks: number
+  contract_vat_kopecks: number
+  contract_total_kopecks: number
+  savings_kopecks: number
+  savings_percent: number
+  min_days: number
+  max_days: number
+  contract_available: boolean
+  contract_error: string | null
+}
+
+export async function compareTariffs(params: {
+  index_from: string
+  index_to: string
+  weight_grams: number
+}): Promise<TariffCompareResult> {
+  const { data } = await api.post('/admin/pochta/tariff-compare', params)
+  return data
+}
+
 export async function calculatePublicTariff(params: {
   index_from: string
   index_to: string

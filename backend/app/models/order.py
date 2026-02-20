@@ -2,7 +2,7 @@ import uuid
 
 import json
 
-from sqlalchemy import ForeignKey, Index, Integer, String, Text, TypeDecorator, UniqueConstraint
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, TypeDecorator, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, generate_uuid
@@ -51,8 +51,22 @@ class Order(Base, TimestampMixin):
     customs_fee_kopecks: Mapped[int] = mapped_column(Integer, nullable=False)
 
     track_number: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    internal_track_number: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
     batch_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("batches.id"), nullable=True)
+    shipment_group_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("shipment_groups.id"), nullable=True)
+
+    # Тарифы: сохраняем при расчёте для отображения экономии в карточке
+    public_tariff_kopecks: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    contract_tariff_kopecks: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tariff_savings_kopecks: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tariff_savings_percent: Mapped[float | None] = mapped_column(nullable=True)
 
     shop = relationship("Shop", back_populates="orders")
     batch = relationship("Batch", back_populates="orders")
+    shipment_group = relationship("ShipmentGroup", back_populates="orders")
     status_history = relationship("OrderStatusHistory", back_populates="order", order_by="OrderStatusHistory.created_at")
+    tracking_events = relationship(
+        "TrackingEvent", back_populates="order",
+        order_by="TrackingEvent.created_at",
+        foreign_keys="TrackingEvent.order_id",
+    )

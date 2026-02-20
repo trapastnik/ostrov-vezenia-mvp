@@ -16,6 +16,22 @@ class TariffResult:
 
 
 @dataclass
+class TariffCompareResult:
+    public_cost_kopecks: int
+    public_vat_kopecks: int
+    public_total_kopecks: int
+    contract_cost_kopecks: int
+    contract_vat_kopecks: int
+    contract_total_kopecks: int
+    savings_kopecks: int
+    savings_percent: float
+    min_days: int
+    max_days: int
+    contract_available: bool
+    contract_error: str | None
+
+
+@dataclass
 class AddressResult:
     index: str
     region: str
@@ -181,3 +197,40 @@ class PochtaClient:
         resp = await self._client.get(f"{self.BASE_URL}/counterpart/balance", headers=self._auth_headers())
         resp.raise_for_status()
         return resp.json().get("balance", 0)
+
+    async def compare_tariffs(
+        self, index_from: str, index_to: str, weight_grams: int, object_code: int = 23030, mail_type: str = "ONLINE_PARCEL"
+    ) -> TariffCompareResult:
+        public = await self.calculate_tariff_public(index_from, index_to, weight_grams, object_code)
+
+        contract_cost = 0
+        contract_vat = 0
+        contract_total = 0
+        contract_available = False
+        contract_error = None
+        try:
+            contract = await self.calculate_tariff_contract(index_from, index_to, weight_grams, mail_type)
+            contract_cost = contract.cost_kopecks
+            contract_vat = contract.vat_kopecks
+            contract_total = contract.total_kopecks
+            contract_available = True
+        except Exception as e:
+            contract_error = str(e)
+
+        savings_kopecks = public.total_kopecks - contract_total if contract_available else 0
+        savings_percent = (savings_kopecks / public.total_kopecks * 100) if contract_available and public.total_kopecks > 0 else 0.0
+
+        return TariffCompareResult(
+            public_cost_kopecks=public.cost_kopecks,
+            public_vat_kopecks=public.vat_kopecks,
+            public_total_kopecks=public.total_kopecks,
+            contract_cost_kopecks=contract_cost,
+            contract_vat_kopecks=contract_vat,
+            contract_total_kopecks=contract_total,
+            savings_kopecks=savings_kopecks,
+            savings_percent=round(savings_percent, 1),
+            min_days=public.min_days,
+            max_days=public.max_days,
+            contract_available=contract_available,
+            contract_error=contract_error,
+        )

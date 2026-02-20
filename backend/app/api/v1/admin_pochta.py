@@ -69,6 +69,21 @@ class BalanceResponse(BaseModel):
     balance_kopecks: int
 
 
+class TariffCompareResponse(BaseModel):
+    public_cost_kopecks: int
+    public_vat_kopecks: int
+    public_total_kopecks: int
+    contract_cost_kopecks: int
+    contract_vat_kopecks: int
+    contract_total_kopecks: int
+    savings_kopecks: int
+    savings_percent: float
+    min_days: int
+    max_days: int
+    contract_available: bool
+    contract_error: str | None
+
+
 # --- Endpoints ---
 
 
@@ -179,6 +194,37 @@ async def normalize_phone(
         city_code=result.city_code,
         number=result.number,
         quality_code=result.quality_code,
+    )
+
+
+@router.post("/tariff-compare", response_model=TariffCompareResponse)
+async def tariff_compare(
+    body: TariffRequest,
+    request: Request,
+    operator: Operator = Depends(get_current_operator),
+):
+    pochta = request.app.state.pochta_client
+    try:
+        result = await pochta.compare_tariffs(
+            index_from=body.index_from,
+            index_to=body.index_to,
+            weight_grams=body.weight_grams,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Pochta API error: {e}")
+    return TariffCompareResponse(
+        public_cost_kopecks=result.public_cost_kopecks,
+        public_vat_kopecks=result.public_vat_kopecks,
+        public_total_kopecks=result.public_total_kopecks,
+        contract_cost_kopecks=result.contract_cost_kopecks,
+        contract_vat_kopecks=result.contract_vat_kopecks,
+        contract_total_kopecks=result.contract_total_kopecks,
+        savings_kopecks=result.savings_kopecks,
+        savings_percent=result.savings_percent,
+        min_days=result.min_days,
+        max_days=result.max_days,
+        contract_available=result.contract_available,
+        contract_error=result.contract_error,
     )
 
 

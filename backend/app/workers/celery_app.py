@@ -19,3 +19,10 @@ celery_app.conf.update(
 )
 
 celery_app.autodiscover_tasks(["app.workers"])
+
+celery_app.conf.beat_schedule = {
+    "run-grouping-optimizer": {
+        "task": "tasks_grouping.run_grouping_optimizer",
+        "schedule": 30 * 60,  # каждые 30 минут; переопределяется через GroupingSettings
+    },
+}

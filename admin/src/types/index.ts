@@ -35,7 +35,13 @@ export interface Order {
   delivery_cost_kopecks: number
   customs_fee_kopecks: number
   track_number: string | null
+  internal_track_number: string | null
   batch_id: string | null
+  shipment_group_id: string | null
+  public_tariff_kopecks: number | null
+  contract_tariff_kopecks: number | null
+  tariff_savings_kopecks: number | null
+  tariff_savings_percent: number | null
   created_at: string
   updated_at: string
 }

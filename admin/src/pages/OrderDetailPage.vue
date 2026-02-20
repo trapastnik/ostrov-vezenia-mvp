@@ -140,9 +140,40 @@ onMounted(load)
           </dl>
           <div class="mt-5 pt-4 border-t border-gray-100">
             <dl class="space-y-2 text-sm">
-              <div class="flex justify-between"><dt class="text-gray-500">Трек-номер</dt><dd class="text-gray-800">{{ order.track_number || '—' }}</dd></div>
+              <div class="flex justify-between"><dt class="text-gray-500">Трек Почты РФ</dt><dd class="text-gray-800 font-mono text-xs">{{ order.track_number || '—' }}</dd></div>
+              <div class="flex justify-between"><dt class="text-gray-500">Наш трек-номер</dt>
+                <dd>
+                  <span v-if="order.internal_track_number" class="font-mono text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+                    {{ order.internal_track_number }}
+                  </span>
+                  <span v-else class="text-gray-400">—</span>
+                </dd>
+              </div>
               <div class="flex justify-between"><dt class="text-gray-500">Создан</dt><dd class="text-gray-800">{{ formatDate(order.created_at) }}</dd></div>
             </dl>
+          </div>
+        </div>
+
+        <!-- Тарифы: публичный vs наш -->
+        <div v-if="order.public_tariff_kopecks" class="bg-white rounded-xl border border-gray-200 p-5">
+          <h3 class="font-semibold text-gray-800 mb-4">Тариф доставки</h3>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-500">Публичный тариф</span>
+              <span class="font-medium text-gray-700">{{ formatPrice(order.public_tariff_kopecks) }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">Наш (контрактный)</span>
+              <span class="font-medium text-green-700">{{ formatPrice(order.contract_tariff_kopecks) }}</span>
+            </div>
+            <div v-if="order.tariff_savings_kopecks && order.tariff_savings_kopecks > 0"
+              class="flex justify-between border-t border-gray-100 pt-2 mt-1">
+              <span class="text-emerald-600 font-medium">Экономия</span>
+              <span class="font-bold text-emerald-600">
+                {{ formatPrice(order.tariff_savings_kopecks) }}
+                <span class="text-xs font-normal ml-1">({{ order.tariff_savings_percent }}%)</span>
+              </span>
+            </div>
           </div>
         </div>
 

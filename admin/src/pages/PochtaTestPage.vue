@@ -1,40 +1,35 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import {
-  calculatePublicTariff,
-  calculateContractTariff,
+  compareTariffs,
   normalizeAddress,
   normalizeFio,
   normalizePhone,
   getBalance,
 } from '../api/pochta'
-import type { TariffResult, AddressResult, FioResult, PhoneResult } from '../api/pochta'
+import type { TariffCompareResult, AddressResult, FioResult, PhoneResult } from '../api/pochta'
 
 // --- Tabs ---
 const activeTab = ref<'tariff' | 'address' | 'fio' | 'phone' | 'balance'>('tariff')
 
-// --- Tariff ---
+// --- Tariff Compare ---
 const tariffFrom = ref('238311')
 const tariffTo = ref('101000')
 const tariffWeight = ref(1000)
 const tariffLoading = ref(false)
-const tariffResult = ref<TariffResult | null>(null)
+const tariffResult = ref<TariffCompareResult | null>(null)
 const tariffError = ref('')
-const tariffType = ref<'public' | 'contract'>('public')
 
 async function calcTariff() {
   tariffLoading.value = true
   tariffResult.value = null
   tariffError.value = ''
   try {
-    const params = {
+    tariffResult.value = await compareTariffs({
       index_from: tariffFrom.value,
       index_to: tariffTo.value,
       weight_grams: tariffWeight.value,
-    }
-    tariffResult.value = tariffType.value === 'public'
-      ? await calculatePublicTariff(params)
-      : await calculateContractTariff(params)
+    })
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } } }
     tariffError.value = err.response?.data?.detail || 'Ошибка запроса'
@@ -153,11 +148,11 @@ function kopecks(v: number): string {
       </button>
     </div>
 
-    <!-- Tab: Tariff -->
-    <div v-if="activeTab === 'tariff'" class="max-w-2xl">
+    <!-- Tab: Tariff Compare -->
+    <div v-if="activeTab === 'tariff'" class="max-w-3xl">
       <div class="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 class="text-lg font-semibold mb-4">Расчёт тарифа</h3>
-        <div class="grid grid-cols-3 gap-4 mb-4">
+        <h3 class="text-lg font-semibold mb-4">Сравнение тарифов</h3>
+        <div class="grid grid-cols-3 gap-4 mb-5">
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">Индекс отправителя</label>
             <input v-model="tariffFrom" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
@@ -171,34 +166,88 @@ function kopecks(v: number): string {
             <input v-model.number="tariffWeight" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
           </div>
         </div>
-        <div class="flex gap-3 mb-4">
-          <label class="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="radio" v-model="tariffType" value="public" />
-            Публичный тариф
-          </label>
-          <label class="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="radio" v-model="tariffType" value="contract" />
-            Договорной тариф
-          </label>
-        </div>
         <button
           @click="calcTariff"
           :disabled="tariffLoading"
           class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
         >
-          {{ tariffLoading ? 'Расчёт...' : 'Рассчитать' }}
+          {{ tariffLoading ? 'Расчёт...' : 'Сравнить тарифы' }}
         </button>
 
         <div v-if="tariffError" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
           {{ tariffError }}
         </div>
 
-        <div v-if="tariffResult" class="mt-4 bg-gray-50 rounded-lg p-4">
-          <div class="grid grid-cols-2 gap-3 text-sm">
-            <div><span class="text-gray-500">Стоимость:</span> <span class="font-medium">{{ kopecks(tariffResult.cost_kopecks) }}</span></div>
-            <div><span class="text-gray-500">НДС:</span> <span class="font-medium">{{ kopecks(tariffResult.vat_kopecks) }}</span></div>
-            <div><span class="text-gray-500">Итого:</span> <span class="font-semibold text-blue-700">{{ kopecks(tariffResult.total_kopecks) }}</span></div>
-            <div><span class="text-gray-500">Срок:</span> <span class="font-medium">{{ tariffResult.min_days }}–{{ tariffResult.max_days }} дн.</span></div>
+        <div v-if="tariffResult" class="mt-5">
+          <!-- Сетка сравнения -->
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <!-- Публичный тариф -->
+            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Публичный тариф</div>
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-gray-500">Стоимость</span>
+                  <span class="font-medium">{{ kopecks(tariffResult.public_cost_kopecks) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-500">НДС</span>
+                  <span class="font-medium">{{ kopecks(tariffResult.public_vat_kopecks) }}</span>
+                </div>
+                <div class="flex justify-between border-t border-gray-200 pt-2 mt-2">
+                  <span class="text-gray-600 font-medium">Итого</span>
+                  <span class="font-bold text-gray-800">{{ kopecks(tariffResult.public_total_kopecks) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Контрактный тариф -->
+            <div
+              class="rounded-lg p-4 border"
+              :class="tariffResult.contract_available
+                ? 'bg-green-50 border-green-200'
+                : 'bg-red-50 border-red-200'"
+            >
+              <div class="text-xs font-semibold uppercase tracking-wide mb-3"
+                :class="tariffResult.contract_available ? 'text-green-500' : 'text-red-400'">
+                Наш (контрактный) тариф
+              </div>
+              <div v-if="tariffResult.contract_available" class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-gray-500">Стоимость</span>
+                  <span class="font-medium">{{ kopecks(tariffResult.contract_cost_kopecks) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-500">НДС</span>
+                  <span class="font-medium">{{ kopecks(tariffResult.contract_vat_kopecks) }}</span>
+                </div>
+                <div class="flex justify-between border-t border-green-200 pt-2 mt-2">
+                  <span class="text-gray-600 font-medium">Итого</span>
+                  <span class="font-bold text-green-700">{{ kopecks(tariffResult.contract_total_kopecks) }}</span>
+                </div>
+              </div>
+              <div v-else class="text-sm text-red-600">
+                Недоступен: {{ tariffResult.contract_error }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Итог: экономия + срок -->
+          <div class="flex gap-4">
+            <div v-if="tariffResult.contract_available && tariffResult.savings_kopecks > 0"
+              class="flex-1 bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
+              <div class="text-xs text-emerald-500 font-semibold uppercase tracking-wide mb-1">Экономия</div>
+              <div class="text-2xl font-bold text-emerald-700">{{ kopecks(tariffResult.savings_kopecks) }}</div>
+              <div class="text-sm text-emerald-600 mt-1">{{ tariffResult.savings_percent }}% дешевле публичного</div>
+            </div>
+            <div v-else-if="tariffResult.contract_available"
+              class="flex-1 bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+              <div class="text-sm text-yellow-700">Контрактный тариф не даёт экономии на этом направлении</div>
+            </div>
+            <div class="flex-1 bg-blue-50 border border-blue-100 rounded-lg p-4 text-center">
+              <div class="text-xs text-blue-400 font-semibold uppercase tracking-wide mb-1">Срок доставки</div>
+              <div class="text-2xl font-bold text-blue-700">{{ tariffResult.min_days }}–{{ tariffResult.max_days }}</div>
+              <div class="text-sm text-blue-500 mt-1">дней</div>
+            </div>
           </div>
         </div>
       </div>
