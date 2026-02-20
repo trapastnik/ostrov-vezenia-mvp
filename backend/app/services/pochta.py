@@ -1,9 +1,21 @@
 import base64
+import time
 from dataclasses import dataclass
 
 import httpx
 
 from app.core.config import Settings
+
+
+@dataclass
+class RawHttpLog:
+    method: str
+    url: str
+    headers: dict
+    request_body: dict | list | None
+    response_status: int
+    response_body: dict | list
+    duration_ms: int
 
 
 @dataclass
@@ -84,6 +96,14 @@ class PochtaClient:
             "Accept": "application/json;charset=UTF-8",
         }
 
+    def _safe_headers(self) -> dict[str, str]:
+        """Заголовки для лога — с замаскированными кредами."""
+        return {
+            "Authorization": "AccessToken ***",
+            "X-User-Authorization": "Basic ***",
+            "Content-Type": "application/json;charset=UTF-8",
+        }
+
     async def start(self):
         self._client = httpx.AsyncClient(timeout=30.0)
 
@@ -93,7 +113,7 @@ class PochtaClient:
 
     async def calculate_tariff_public(
         self, index_from: str, index_to: str, weight_grams: int, object_code: int = 23030
-    ) -> TariffResult:
+    ) -> tuple[TariffResult, RawHttpLog]:
         params = {
             "json": "",
             "object": object_code,
@@ -102,7 +122,10 @@ class PochtaClient:
             "weight": weight_grams,
             "pack": 10,
         }
-        resp = await self._client.get(f"{self.PUBLIC_TARIFF_URL}/calculate/tariff/delivery", params=params)
+        url = f"{self.PUBLIC_TARIFF_URL}/calculate/tariff/delivery"
+        t0 = time.monotonic()
+        resp = await self._client.get(url, params=params)
+        duration_ms = int((time.monotonic() - t0) * 1000)
         resp.raise_for_status()
         data = resp.json()
 
@@ -110,17 +133,26 @@ class PochtaClient:
         paynds = data.get("paynds", 0)
         delivery = data.get("delivery", {})
 
+        log = RawHttpLog(
+            method="GET",
+            url=str(resp.url),
+            headers={},
+            request_body=None,
+            response_status=resp.status_code,
+            response_body=data,
+            duration_ms=duration_ms,
+        )
         return TariffResult(
             cost_kopecks=pay,
             vat_kopecks=paynds - pay,
             total_kopecks=paynds,
             min_days=delivery.get("min", 0),
             max_days=delivery.get("max", 0),
-        )
+        ), log
 
     async def calculate_tariff_contract(
         self, index_from: str, index_to: str, weight_grams: int, mail_type: str = "ONLINE_PARCEL"
-    ) -> TariffResult:
+    ) -> tuple[TariffResult, RawHttpLog]:
         payload = {
             "index-from": index_from,
             "index-to": index_to,
@@ -129,7 +161,10 @@ class PochtaClient:
             "mass": weight_grams,
             "payment-method": "CASHLESS",
         }
-        resp = await self._client.post(f"{self.BASE_URL}/tariff", headers=self._auth_headers(), json=payload)
+        url = f"{self.BASE_URL}/tariff"
+        t0 = time.monotonic()
+        resp = await self._client.post(url, headers=self._auth_headers(), json=payload)
+        duration_ms = int((time.monotonic() - t0) * 1000)
         resp.raise_for_status()
         data = resp.json()
 
@@ -137,24 +172,42 @@ class PochtaClient:
         total_vat = data.get("total-vat", 0)
         delivery_time = data.get("delivery-time", {})
 
+        log = RawHttpLog(
+            method="POST",
+            url=url,
+            headers=self._safe_headers(),
+            request_body=payload,
+            response_status=resp.status_code,
+            response_body=data,
+            duration_ms=duration_ms,
+        )
         return TariffResult(
             cost_kopecks=total_rate,
             vat_kopecks=total_vat,
             total_kopecks=total_rate + total_vat,
             min_days=delivery_time.get("min-days", 0),
             max_days=delivery_time.get("max-days", 0),
-        )
+        ), log
 
-    async def normalize_address(self, address: str) -> AddressResult:
+    async def normalize_address(self, address: str) -> tuple[AddressResult, RawHttpLog]:
         payload = [{"id": "0", "original-address": address}]
-        resp = await self._client.post(f"{self.BASE_URL}/clean/address", headers=self._auth_headers(), json=payload)
+        url = f"{self.BASE_URL}/clean/address"
+        t0 = time.monotonic()
+        resp = await self._client.post(url, headers=self._auth_headers(), json=payload)
+        duration_ms = int((time.monotonic() - t0) * 1000)
         resp.raise_for_status()
-        data = resp.json()[0]
+        raw = resp.json()
+        data = raw[0]
 
         quality = data.get("quality-code", "")
         validation = data.get("validation-code", "")
         is_valid = quality in GOOD_QUALITY_CODES and validation in GOOD_VALIDATION_CODES
 
+        log = RawHttpLog(
+            method="POST", url=url, headers=self._safe_headers(),
+            request_body=payload, response_status=resp.status_code,
+            response_body=raw, duration_ms=duration_ms,
+        )
         return AddressResult(
             index=data.get("index", ""),
             region=data.get("region", ""),
@@ -165,33 +218,51 @@ class PochtaClient:
             quality_code=quality,
             validation_code=validation,
             is_valid=is_valid,
-        )
+        ), log
 
-    async def normalize_fio(self, fio: str) -> FioResult:
+    async def normalize_fio(self, fio: str) -> tuple[FioResult, RawHttpLog]:
         payload = [{"id": "0", "original-fio": fio}]
-        resp = await self._client.post(f"{self.BASE_URL}/clean/physical", headers=self._auth_headers(), json=payload)
+        url = f"{self.BASE_URL}/clean/physical"
+        t0 = time.monotonic()
+        resp = await self._client.post(url, headers=self._auth_headers(), json=payload)
+        duration_ms = int((time.monotonic() - t0) * 1000)
         resp.raise_for_status()
-        data = resp.json()[0]
+        raw = resp.json()
+        data = raw[0]
 
+        log = RawHttpLog(
+            method="POST", url=url, headers=self._safe_headers(),
+            request_body=payload, response_status=resp.status_code,
+            response_body=raw, duration_ms=duration_ms,
+        )
         return FioResult(
             surname=data.get("surname", ""),
             name=data.get("name", ""),
             middle_name=data.get("middle-name", ""),
             quality_code=data.get("quality-code", ""),
-        )
+        ), log
 
-    async def normalize_phone(self, phone: str) -> PhoneResult:
+    async def normalize_phone(self, phone: str) -> tuple[PhoneResult, RawHttpLog]:
         payload = [{"id": "0", "original-phone": phone}]
-        resp = await self._client.post(f"{self.BASE_URL}/clean/phone", headers=self._auth_headers(), json=payload)
+        url = f"{self.BASE_URL}/clean/phone"
+        t0 = time.monotonic()
+        resp = await self._client.post(url, headers=self._auth_headers(), json=payload)
+        duration_ms = int((time.monotonic() - t0) * 1000)
         resp.raise_for_status()
-        data = resp.json()[0]
+        raw = resp.json()
+        data = raw[0]
 
+        log = RawHttpLog(
+            method="POST", url=url, headers=self._safe_headers(),
+            request_body=payload, response_status=resp.status_code,
+            response_body=raw, duration_ms=duration_ms,
+        )
         return PhoneResult(
             country_code=data.get("phone-country-code", ""),
             city_code=data.get("phone-city-code", ""),
             number=data.get("phone-number", ""),
             quality_code=data.get("quality-code", ""),
-        )
+        ), log
 
     async def get_balance(self) -> int | None:
         """Возвращает баланс в копейках или None если эндпоинт недоступен (нет договора)."""
@@ -206,8 +277,9 @@ class PochtaClient:
 
     async def compare_tariffs(
         self, index_from: str, index_to: str, weight_grams: int, object_code: int = 23030, mail_type: str = "ONLINE_PARCEL"
-    ) -> TariffCompareResult:
-        public = await self.calculate_tariff_public(index_from, index_to, weight_grams, object_code)
+    ) -> tuple[TariffCompareResult, list[RawHttpLog]]:
+        public, log_public = await self.calculate_tariff_public(index_from, index_to, weight_grams, object_code)
+        logs: list[RawHttpLog] = [log_public]
 
         contract_cost = 0
         contract_vat = 0
@@ -215,11 +287,12 @@ class PochtaClient:
         contract_available = False
         contract_error = None
         try:
-            contract = await self.calculate_tariff_contract(index_from, index_to, weight_grams, mail_type)
+            contract, log_contract = await self.calculate_tariff_contract(index_from, index_to, weight_grams, mail_type)
             contract_cost = contract.cost_kopecks
             contract_vat = contract.vat_kopecks
             contract_total = contract.total_kopecks
             contract_available = True
+            logs.append(log_contract)
         except Exception as e:
             contract_error = str(e)
 
@@ -239,4 +312,4 @@ class PochtaClient:
             max_days=public.max_days,
             contract_available=contract_available,
             contract_error=contract_error,
-        )
+        ), logs

@@ -44,6 +44,7 @@ async function calcTariff() {
       responseBody: data,
       durationMs: Date.now() - start,
       isError: false,
+      pochtaLog: data.pochta_log,
     }
   } catch (e: unknown) {
     const err = e as { response?: { status?: number; data?: { detail?: string } } }
@@ -87,6 +88,7 @@ async function checkAddress() {
       responseBody: data,
       durationMs: Date.now() - start,
       isError: false,
+      pochtaLog: data.pochta_log,
     }
   } catch (e: unknown) {
     const err = e as { response?: { status?: number; data?: { detail?: string } } }
@@ -130,6 +132,7 @@ async function checkFio() {
       responseBody: data,
       durationMs: Date.now() - start,
       isError: false,
+      pochtaLog: data.pochta_log,
     }
   } catch (e: unknown) {
     const err = e as { response?: { status?: number; data?: { detail?: string } } }
@@ -173,6 +176,7 @@ async function checkPhone() {
       responseBody: data,
       durationMs: Date.now() - start,
       isError: false,
+      pochtaLog: data.pochta_log,
     }
   } catch (e: unknown) {
     const err = e as { response?: { status?: number; data?: { detail?: string } } }

@@ -1,11 +1,22 @@
 import api from './client'
 
+export interface PochtaLogEntry {
+  method: string
+  url: string
+  headers: Record<string, string>
+  request_body: unknown
+  response_status: number
+  response_body: unknown
+  duration_ms: number
+}
+
 export interface TariffResult {
   cost_kopecks: number
   vat_kopecks: number
   total_kopecks: number
   min_days: number
   max_days: number
+  pochta_log?: PochtaLogEntry[]
 }
 
 export interface AddressResult {
@@ -18,6 +29,7 @@ export interface AddressResult {
   quality_code: string
   validation_code: string
   is_valid: boolean
+  pochta_log?: PochtaLogEntry[]
 }
 
 export interface FioResult {
@@ -25,6 +37,7 @@ export interface FioResult {
   name: string
   middle_name: string
   quality_code: string
+  pochta_log?: PochtaLogEntry[]
 }
 
 export interface PhoneResult {
@@ -32,6 +45,7 @@ export interface PhoneResult {
   city_code: string
   number: string
   quality_code: string
+  pochta_log?: PochtaLogEntry[]
 }
 
 export interface BalanceResult {
@@ -53,6 +67,7 @@ export interface TariffCompareResult {
   max_days: number
   contract_available: boolean
   contract_error: string | null
+  pochta_log?: PochtaLogEntry[]
 }
 
 export async function compareTariffs(params: {

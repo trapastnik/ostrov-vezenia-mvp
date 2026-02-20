@@ -31,12 +31,23 @@ class PhoneRequest(BaseModel):
 # --- Response schemas ---
 
 
+class PochtaHttpLog(BaseModel):
+    method: str
+    url: str
+    headers: dict
+    request_body: list | dict | None
+    response_status: int
+    response_body: list | dict
+    duration_ms: int
+
+
 class TariffResponse(BaseModel):
     cost_kopecks: int
     vat_kopecks: int
     total_kopecks: int
     min_days: int
     max_days: int
+    pochta_log: list[PochtaHttpLog] = []
 
 
 class AddressResponse(BaseModel):
@@ -49,6 +60,7 @@ class AddressResponse(BaseModel):
     quality_code: str
     validation_code: str
     is_valid: bool
+    pochta_log: list[PochtaHttpLog] = []
 
 
 class FioResponse(BaseModel):
@@ -56,6 +68,7 @@ class FioResponse(BaseModel):
     name: str
     middle_name: str
     quality_code: str
+    pochta_log: list[PochtaHttpLog] = []
 
 
 class PhoneResponse(BaseModel):
@@ -63,6 +76,7 @@ class PhoneResponse(BaseModel):
     city_code: str
     number: str
     quality_code: str
+    pochta_log: list[PochtaHttpLog] = []
 
 
 class BalanceResponse(BaseModel):
@@ -84,6 +98,7 @@ class TariffCompareResponse(BaseModel):
     max_days: int
     contract_available: bool
     contract_error: str | None
+    pochta_log: list[PochtaHttpLog] = []
 
 
 # --- Endpoints ---
@@ -97,7 +112,7 @@ async def tariff_public(
 ):
     pochta = request.app.state.pochta_client
     try:
-        result = await pochta.calculate_tariff_public(
+        result, log = await pochta.calculate_tariff_public(
             index_from=body.index_from,
             index_to=body.index_to,
             weight_grams=body.weight_grams,
@@ -110,6 +125,7 @@ async def tariff_public(
         total_kopecks=result.total_kopecks,
         min_days=result.min_days,
         max_days=result.max_days,
+        pochta_log=[PochtaHttpLog(**vars(log))],
     )
 
 
@@ -121,7 +137,7 @@ async def tariff_contract(
 ):
     pochta = request.app.state.pochta_client
     try:
-        result = await pochta.calculate_tariff_contract(
+        result, log = await pochta.calculate_tariff_contract(
             index_from=body.index_from,
             index_to=body.index_to,
             weight_grams=body.weight_grams,
@@ -134,6 +150,7 @@ async def tariff_contract(
         total_kopecks=result.total_kopecks,
         min_days=result.min_days,
         max_days=result.max_days,
+        pochta_log=[PochtaHttpLog(**vars(log))],
     )
 
 
@@ -145,7 +162,7 @@ async def normalize_address(
 ):
     pochta = request.app.state.pochta_client
     try:
-        result = await pochta.normalize_address(body.address)
+        result, log = await pochta.normalize_address(body.address)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Pochta API error: {e}")
     return AddressResponse(
@@ -158,6 +175,7 @@ async def normalize_address(
         quality_code=result.quality_code,
         validation_code=result.validation_code,
         is_valid=result.is_valid,
+        pochta_log=[PochtaHttpLog(**vars(log))],
     )
 
 
@@ -169,7 +187,7 @@ async def normalize_fio(
 ):
     pochta = request.app.state.pochta_client
     try:
-        result = await pochta.normalize_fio(body.fio)
+        result, log = await pochta.normalize_fio(body.fio)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Pochta API error: {e}")
     return FioResponse(
@@ -177,6 +195,7 @@ async def normalize_fio(
         name=result.name,
         middle_name=result.middle_name,
         quality_code=result.quality_code,
+        pochta_log=[PochtaHttpLog(**vars(log))],
     )
 
 
@@ -188,7 +207,7 @@ async def normalize_phone(
 ):
     pochta = request.app.state.pochta_client
     try:
-        result = await pochta.normalize_phone(body.phone)
+        result, log = await pochta.normalize_phone(body.phone)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Pochta API error: {e}")
     return PhoneResponse(
@@ -196,6 +215,7 @@ async def normalize_phone(
         city_code=result.city_code,
         number=result.number,
         quality_code=result.quality_code,
+        pochta_log=[PochtaHttpLog(**vars(log))],
     )
 
 
@@ -207,7 +227,7 @@ async def tariff_compare(
 ):
     pochta = request.app.state.pochta_client
     try:
-        result = await pochta.compare_tariffs(
+        result, logs = await pochta.compare_tariffs(
             index_from=body.index_from,
             index_to=body.index_to,
             weight_grams=body.weight_grams,
@@ -227,6 +247,7 @@ async def tariff_compare(
         max_days=result.max_days,
         contract_available=result.contract_available,
         contract_error=result.contract_error,
+        pochta_log=[PochtaHttpLog(**vars(log)) for log in logs],
     )
 
 
