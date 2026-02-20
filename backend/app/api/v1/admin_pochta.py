@@ -66,7 +66,9 @@ class PhoneResponse(BaseModel):
 
 
 class BalanceResponse(BaseModel):
-    balance_kopecks: int
+    balance_kopecks: int | None
+    available: bool
+    message: str | None = None
 
 
 class TariffCompareResponse(BaseModel):
@@ -238,4 +240,10 @@ async def get_balance(
         balance = await pochta.get_balance()
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Pochta API error: {e}")
-    return BalanceResponse(balance_kopecks=balance)
+    if balance is None:
+        return BalanceResponse(
+            balance_kopecks=None,
+            available=False,
+            message="Баланс недоступен: для этого аккаунта не подключён договор на отправку. Обратитесь на otpravka.pochta.ru",
+        )
+    return BalanceResponse(balance_kopecks=balance, available=True)

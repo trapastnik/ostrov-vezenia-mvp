@@ -102,14 +102,20 @@ async function checkPhone() {
 const balanceLoading = ref(false)
 const balanceResult = ref<number | null>(null)
 const balanceError = ref('')
+const balanceUnavailable = ref('')
 
 async function checkBalance() {
   balanceLoading.value = true
   balanceResult.value = null
   balanceError.value = ''
+  balanceUnavailable.value = ''
   try {
     const data = await getBalance()
-    balanceResult.value = data.balance_kopecks
+    if (!data.available) {
+      balanceUnavailable.value = data.message || 'Баланс недоступен для этого аккаунта'
+    } else {
+      balanceResult.value = data.balance_kopecks
+    }
   } catch (e: unknown) {
     const err = e as { response?: { data?: { detail?: string } } }
     balanceError.value = err.response?.data?.detail || 'Ошибка запроса'
@@ -372,6 +378,14 @@ function kopecks(v: number): string {
 
         <div v-if="balanceError" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
           {{ balanceError }}
+        </div>
+
+        <div v-if="balanceUnavailable" class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 flex gap-3">
+          <span class="text-xl">⚠️</span>
+          <div>
+            <div class="font-medium mb-1">Баланс недоступен</div>
+            <div>{{ balanceUnavailable }}</div>
+          </div>
         </div>
 
         <div v-if="balanceResult !== null" class="mt-4 bg-gray-50 rounded-lg p-6 text-center">

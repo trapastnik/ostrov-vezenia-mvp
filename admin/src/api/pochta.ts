@@ -35,7 +35,9 @@ export interface PhoneResult {
 }
 
 export interface BalanceResult {
-  balance_kopecks: number
+  balance_kopecks: number | null
+  available: boolean
+  message?: string | null
 }
 
 export interface TariffCompareResult {

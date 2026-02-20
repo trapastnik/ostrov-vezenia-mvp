@@ -193,8 +193,14 @@ class PochtaClient:
             quality_code=data.get("quality-code", ""),
         )
 
-    async def get_balance(self) -> int:
+    async def get_balance(self) -> int | None:
+        """Возвращает баланс в копейках или None если эндпоинт недоступен (нет договора)."""
         resp = await self._client.get(f"{self.BASE_URL}/counterpart/balance", headers=self._auth_headers())
+        if resp.status_code == 500:
+            # Почта возвращает 500 "No endpoint" для аккаунтов без договора на отправку
+            data = resp.json()
+            if data.get("sub-code") == "INTERNAL_ERROR" and "No endpoint" in data.get("desc", ""):
+                return None
         resp.raise_for_status()
         return resp.json().get("balance", 0)
 
