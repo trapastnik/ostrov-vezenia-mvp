@@ -10,7 +10,8 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60
 
-    CORS_ORIGINS: list[str] = ["https://admin.ostrov-vezeniya.ru", "https://api.ostrov-vezeniya.ru"]
+    # Через запятую, например: https://admin.ostrov-vezeniya.ru,https://api.ostrov-vezeniya.ru
+    CORS_ORIGINS_STR: str = "https://admin.ostrov-vezeniya.ru,https://api.ostrov-vezeniya.ru"
 
     POCHTA_API_TOKEN: str = ""
     POCHTA_LOGIN: str = ""
@@ -26,6 +27,10 @@ class Settings(BaseSettings):
     POCHTA_MAIL_TYPE: str = "ONLINE_PARCEL"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @property
+    def CORS_ORIGINS(self) -> list[str]:
+        return [origin.strip() for origin in self.CORS_ORIGINS_STR.split(",") if origin.strip()]
 
     @field_validator("JWT_SECRET_KEY")
     @classmethod
