@@ -160,17 +160,17 @@ onMounted(load)
           <div class="space-y-2 text-sm">
             <div class="flex justify-between">
               <span class="text-gray-500">Публичный тариф</span>
-              <span class="font-medium text-gray-700">{{ formatPrice(order.public_tariff_kopecks) }}</span>
+              <span class="font-medium text-gray-700">{{ formatPrice(order.public_tariff_kopecks ?? 0) }}</span>
             </div>
             <div class="flex justify-between">
               <span class="text-gray-500">Наш (контрактный)</span>
-              <span class="font-medium text-green-700">{{ formatPrice(order.contract_tariff_kopecks) }}</span>
+              <span class="font-medium text-green-700">{{ formatPrice(order.contract_tariff_kopecks ?? 0) }}</span>
             </div>
             <div v-if="order.tariff_savings_kopecks && order.tariff_savings_kopecks > 0"
               class="flex justify-between border-t border-gray-100 pt-2 mt-1">
               <span class="text-emerald-600 font-medium">Экономия</span>
               <span class="font-bold text-emerald-600">
-                {{ formatPrice(order.tariff_savings_kopecks) }}
+                {{ formatPrice(order.tariff_savings_kopecks ?? 0) }}
                 <span class="text-xs font-normal ml-1">({{ order.tariff_savings_percent }}%)</span>
               </span>
             </div>
