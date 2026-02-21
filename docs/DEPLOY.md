@@ -93,19 +93,19 @@ nano .env
 DATABASE_URL=postgresql+asyncpg://ostrov:STRONG_PASSWORD@db:5432/ostrov
 DB_PASSWORD=STRONG_PASSWORD
 
-# JWT
-JWT_SECRET_KEY=RANDOM_64_CHAR_STRING
-JWT_EXPIRE_MINUTES=1440
+# JWT (минимум 32 символа, иначе backend не стартует)
+JWT_SECRET_KEY=RANDOM_64_CHAR_STRING   # openssl rand -hex 32
+JWT_EXPIRE_MINUTES=60
 
 # Почта России
 POCHTA_API_TOKEN=<token>
 POCHTA_LOGIN=<login>
 POCHTA_PASSWORD=<password>
 
-# CORS
-CORS_ORIGINS=https://admin.ostrov-vezeniya.ru
+# CORS (через запятую)
+CORS_ORIGINS_STR=https://admin.ostrov-vezeniya.ru,https://api.ostrov-vezeniya.ru
 
-# Redis (для Celery)
+# Redis (для Celery + rate limiter)
 REDIS_URL=redis://redis:6379/0
 ```
 
@@ -236,9 +236,19 @@ docker compose exec backend alembic upgrade head
 
 ---
 
-## Мониторинг (будущее)
+## Мониторинг (встроенный)
 
-- Health-check: `GET /api/v1/health` → 200
-- Метрики: Prometheus + Grafana
-- Алерты: disk space, memory, API latency
-- Uptime: UptimeRobot / Better Uptime
+В админ-панели есть страница **«Здоровье системы»** (`/system-health`, только admin):
+
+| Эндпоинт | Описание |
+|----------|----------|
+| `GET /health` | Публичный: `{"status":"ok","version":"0.2.0"}` |
+| `GET /api/v1/admin/health` | Статус сервисов (DB, Redis, Почта) + статистика БД |
+| `GET /api/v1/admin/health/server` | RAM, CPU load avg (1/5/15м), диск, PID + RSS нашего процесса |
+| `POST /api/v1/admin/health/run-tests` | 5 системных тестов: БД, Redis, Почта public, Почта contract, JWT |
+
+Метрики сервера читаются через `/proc/meminfo`, `/proc/loadavg`, `/proc/self/status` и `statvfs` — без зависимостей (psutil не нужен).
+
+### Будущее
+- Prometheus + Grafana
+- UptimeRobot / Better Uptime для внешнего мониторинга

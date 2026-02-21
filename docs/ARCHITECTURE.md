@@ -80,18 +80,31 @@ app/
 │   ├── router.py               # Агрегирует все роутеры
 │   ├── delivery.py             # POST /delivery/calculate
 │   ├── orders.py               # Для магазинов: создание, статус, трекинг
-│   ├── auth.py                 # POST /auth/login
+│   ├── tracking.py             # GET /track/{track_number} (публичный трекинг)
+│   ├── auth.py                 # POST /auth/login (rate limit 10/min)
 │   ├── admin_orders.py         # Список, карточка, смена статуса
 │   ├── admin_batches.py        # Создание и список партий
-│   └── admin_shops.py          # CRUD магазинов
+│   ├── admin_shops.py          # CRUD магазинов
+│   ├── admin_groups.py         # Группы отправок + настройки оптимизатора
+│   ├── admin_pochta.py         # Тест-интерфейс к API Почты России (тарифы, адреса, ФИО, телефон)
+│   └── admin_health.py         # GET /health, GET /health/server, POST /health/run-tests
+├── core/
+│   ├── config.py               # Pydantic Settings (из .env); CORS_ORIGINS_STR; JWT fail-fast validator
+│   ├── database.py             # async engine + session factory
+│   ├── security.py             # JWT encode/decode, bcrypt, API key verify, HMAC
+│   ├── dependencies.py         # get_db, get_current_operator, require_admin, verify_api_key
+│   └── limiter.py              # slowapi Limiter с Redis storage + get_real_ip (X-Forwarded-For)
 ├── services/
-│   ├── pochta.py               # PochtaClient — async обёртка API Почты России
+│   ├── pochta.py               # PochtaClient — async обёртка API Почты России (возвращает tuple[Result, RawHttpLog])
 │   ├── delivery.py             # Расчёт стоимости: тариф Почты + таможня
 │   ├── order.py                # Бизнес-логика заказов, валидация переходов
+│   ├── grouping_optimizer.py   # Математика оптимизации группировки (score = savings − penalty × wait_hours)
+│   ├── hub_router.py           # Маршрутизация по хабам (10 хабов по первым 3 цифрам индекса)
 │   └── webhook.py              # Отправка уведомлений магазину
 ├── workers/
-│   ├── celery_app.py           # Celery конфигурация
-│   └── tasks_webhook.py        # Фоновая задача отправки webhook
+│   ├── celery_app.py           # Celery конфигурация + Beat расписание
+│   ├── tasks_webhook.py        # Фоновая задача отправки webhook
+│   └── tasks_grouping.py       # Celery задача оптимизатора (каждые 30 мин)
 └── scripts/
     └── create_admin.py         # Создание первого админ-пользователя
 ```
@@ -102,23 +115,31 @@ app/
 admin/src/
 ├── main.ts                     # Точка входа, Pinia + Router
 ├── App.vue                     # Корневой компонент
+├── env.d.ts                    # declare const __APP_VERSION__: string
 ├── router/index.ts             # Роуты + guard авторизации
 ├── stores/auth.ts              # Pinia store: JWT, operator
 ├── api/
 │   ├── client.ts               # Axios instance + interceptors (401 → logout)
 │   ├── orders.ts               # fetchOrders, fetchOrder, changeOrderStatus
 │   ├── shops.ts                # fetchShops, fetchShop, createShop, updateShop
-│   └── batches.ts              # fetchBatches, createBatch
+│   ├── batches.ts              # fetchBatches, createBatch
+│   ├── groups.ts               # fetchGroups, updateGroupStatus, fetchSettings, updateSettings
+│   ├── pochta.ts               # testTariff, testAddress, testFio, testPhone (с pochta_log)
+│   └── health.ts               # fetchHealth, runSystemTests, fetchServerMetrics
 ├── pages/
 │   ├── LoginPage.vue
 │   ├── DashboardPage.vue       # Статистика: заказы, магазины, партии
 │   ├── OrdersListPage.vue      # Таблица с фильтрами, поиском, пагинацией
-│   ├── OrderDetailPage.vue     # Карточка: товары, получатель, стоимость, история
+│   ├── OrderDetailPage.vue     # Карточка: товары, получатель, стоимость, история, трекинг
 │   ├── BatchesListPage.vue
 │   ├── ShopsListPage.vue
-│   └── ShopDetailPage.vue
+│   ├── ShopDetailPage.vue
+│   ├── GroupsPage.vue          # Группы отправок + настройки оптимизатора
+│   ├── PochtaTestPage.vue      # Тест-интерфейс API Почты (тарифы, адреса, ФИО, телефон)
+│   └── SystemHealthPage.vue    # Здоровье системы: сервисы, метрики сервера, системные тесты
 ├── components/
-│   ├── Sidebar.vue
+│   ├── Sidebar.vue             # Навигация + версия приложения (v0.2.0)
+│   ├── ApiDebugPanel.vue       # Дебаг-панель HTTP-логов (браузер↔backend, backend↔Почта)
 │   ├── OrderStatusBadge.vue    # Цветные бейджи статусов
 │   ├── ChangeStatusModal.vue   # Модалка смены статуса с валидацией
 │   └── Pagination.vue
@@ -217,12 +238,13 @@ Headers: X-Signature: HMAC-SHA256(body, api_key)
 | Переменная | Описание | Пример |
 |-----------|----------|--------|
 | DATABASE_URL | Строка подключения к БД | postgresql+asyncpg://... |
-| JWT_SECRET_KEY | Секрет для JWT токенов | random-string |
-| JWT_EXPIRE_MINUTES | Время жизни JWT | 1440 (24 часа) |
+| REDIS_URL | URL Redis (Celery + rate limiter) | redis://redis:6379/0 |
+| JWT_SECRET_KEY | Секрет JWT (≥32 символов, fail-fast) | openssl rand -hex 32 |
+| JWT_EXPIRE_MINUTES | Время жизни JWT | 60 (1 час) |
 | POCHTA_API_TOKEN | Токен API Почты России | NgZG... |
 | POCHTA_LOGIN | Логин Почты России | email |
 | POCHTA_PASSWORD | Пароль Почты России | password |
-| CORS_ORIGINS | Разрешённые origins | http://localhost:3000 |
+| CORS_ORIGINS_STR | Разрешённые origins (через запятую) | https://admin.ostrov-vezeniya.ru |
 
 ---
 

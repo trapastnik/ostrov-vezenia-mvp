@@ -20,7 +20,8 @@ API-ключ генерируется при создании магазина �
 ```
 Header: Authorization: Bearer <jwt-token>
 ```
-JWT получается через `/auth/login`, время жизни — 24 часа.
+JWT получается через `/auth/login`, время жизни — 60 минут.
+Rate limit на `/auth/login`: 10 запросов в минуту (по IP).
 
 ---
 
@@ -396,6 +397,57 @@ Query: `page`, `per_page`
 ```json
 {
   "detail": "Описание ошибки"
+}
+```
+
+---
+
+### GET /admin/health — Статус системы
+
+Ответ (200):
+```json
+{
+  "version": "0.2.0",
+  "uptime_seconds": 3600,
+  "services": [
+    {"name": "PostgreSQL / SQLite", "status": "ok", "latency_ms": 3},
+    {"name": "Redis", "status": "ok", "latency_ms": 6},
+    {"name": "Почта России API", "status": "ok", "latency_ms": 450}
+  ],
+  "stats": {
+    "orders_total": 10, "orders_today": 0,
+    "shops_total": 4, "batches_total": 0
+  }
+}
+```
+
+### GET /admin/health/server — Метрики VPS
+
+```json
+{
+  "ram_total_mb": 1968, "ram_used_mb": 700, "ram_available_mb": 1268,
+  "ram_used_pct": 35.6,
+  "load_1m": 0.14, "load_5m": 0.23, "load_15m": 0.29, "cpu_count": 1,
+  "disk_total_gb": 29.0, "disk_used_gb": 5.0, "disk_free_gb": 24.0, "disk_used_pct": 18.0,
+  "process_pid": 8, "process_ram_mb": 95.4, "process_ram_pct": 4.85
+}
+```
+
+### POST /admin/health/run-tests — Системные тесты
+
+Запускает 5 тестов: БД, Redis SET/GET, Почта public, Почта contract, JWT.
+
+Ответ (200):
+```json
+{
+  "results": [
+    {"name": "БД: чтение запросов", "status": "pass", "detail": "SELECT 1+1 выполнен успешно", "duration_ms": 1},
+    {"name": "Redis: запись и чтение", "status": "pass", "detail": "SET/GET/DEL прошли успешно", "duration_ms": 3},
+    {"name": "Почта: тарификатор (публичный)", "status": "pass", "detail": "Тариф 238311→101000 500г: 158.00 ₽", "duration_ms": 320},
+    {"name": "Почта: тарификатор (контрактный)", "status": "pass", "detail": "Контрактный тариф ...", "duration_ms": 410},
+    {"name": "JWT авторизация", "status": "pass", "detail": "Оператор: Администратор (admin)", "duration_ms": 0}
+  ],
+  "passed": 5, "failed": 0, "total": 5
 }
 ```
 

@@ -155,10 +155,25 @@
 
 ---
 
+## Мониторинг / System Health (добавлено 2026-02-21) ✅
+
+| # | Задача | Статус | Заметки |
+|---|--------|--------|---------|
+| 84 | Страница «Здоровье системы» в админке (`/system-health`) | ✅ | Vue-страница с баннером статуса, сервисами, статистикой |
+| 85 | Backend: `GET /admin/health` — статус сервисов + статистика БД | ✅ | DB, Redis, Почта API latency; заказы/магазины/партии |
+| 86 | Backend: `POST /admin/health/run-tests` — 5 системных тестов | ✅ | БД, Redis SET/GET, Pochta public+contract, JWT |
+| 87 | Backend: `GET /admin/health/server` — метрики VPS через /proc | ✅ | RAM (total/used + % нашего процесса), CPU load avg (1/5/15м), диск |
+| 88 | Frontend: секция «Ресурсы сервера» с прогресс-барами | ✅ | Цветовая индикация green/yellow/red, вклад backend в RAM |
+| 89 | Фикс роута `/health` → `/system-health` (конфликт с nginx) | ✅ | nginx перехватывал /health и проксировал на backend |
+| 90 | Версионность: v0.2.0 в pyproject.toml + package.json | ✅ | importlib.metadata в backend; Vite define в frontend; git tag v0.2.0 |
+| 91 | Sidebar: версия `v0.2.0` внизу + ссылка «Здоровье системы» (admin only) | ✅ | |
+
+---
+
 ## Последнее обновление: 2026-02-21
 
 ### Итого
-- **Сделано**: 50 задач
+- **Сделано**: 58 задач
 - **В работе**: 0
 - **Backlog**: 31 задача
 - **Репозиторий**: https://github.com/trapastnik/ostrov-vezenia-mvp
