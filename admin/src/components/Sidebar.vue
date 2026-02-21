@@ -5,6 +5,8 @@ import { useRouter } from 'vue-router'
 const auth = useAuthStore()
 const router = useRouter()
 
+const appVersion = __APP_VERSION__
+
 function logout() {
   auth.logout()
   router.push('/login')
@@ -47,6 +49,7 @@ const navItems = [
       <button @click="logout" class="mt-2 text-xs text-red-600 hover:text-red-800 cursor-pointer">
         Выйти
       </button>
+      <div class="mt-3 text-xs text-gray-300">v{{ appVersion }}</div>
     </div>
   </aside>
 </template>

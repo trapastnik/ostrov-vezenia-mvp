@@ -1,6 +1,7 @@
 import logging
 import traceback
 from contextlib import asynccontextmanager
+from importlib.metadata import version as pkg_version
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -19,6 +20,8 @@ from app.api.v1.router import api_v1_router
 from app.core.config import settings
 from app.services.pochta import PochtaClient
 
+APP_VERSION = pkg_version("ostrov-backend")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -31,7 +34,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Ostrov Vezeniya API",
-    version="1.0.0",
+    version=APP_VERSION,
     description="Customs clearance and delivery service for Kaliningrad e-commerce",
     lifespan=lifespan,
 )
@@ -58,7 +61,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "version": APP_VERSION}
 
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
