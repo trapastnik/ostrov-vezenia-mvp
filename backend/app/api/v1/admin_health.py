@@ -91,11 +91,9 @@ async def get_health(
         t0 = time.monotonic()
         try:
             result, _log = await pochta_client.calculate_tariff_public(
-                mail_type="ONLINE_PARCEL",
-                object_type=23030,
                 index_from="238311",
                 index_to="101000",
-                mass=500,
+                weight_grams=500,
             )
             pochta_ms = int((time.monotonic() - t0) * 1000)
             if result is not None:
@@ -209,11 +207,9 @@ async def run_system_tests(
     if pochta_client is not None:
         try:
             result, _log = await pochta_client.calculate_tariff_public(
-                mail_type="ONLINE_PARCEL",
-                object_type=23030,
                 index_from="238311",
                 index_to="101000",
-                mass=500,
+                weight_grams=500,
             )
             if result is not None and result.total_kopecks > 0:
                 results.append(TestResult(
@@ -249,11 +245,9 @@ async def run_system_tests(
     if pochta_client is not None:
         try:
             result, _log = await pochta_client.calculate_tariff_contract(
-                mail_type="ONLINE_PARCEL",
-                object_type=23030,
                 index_from="238311",
                 index_to="101000",
-                mass=500,
+                weight_grams=500,
             )
             if result is not None and result.total_kopecks > 0:
                 results.append(TestResult(
