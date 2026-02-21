@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1.admin_batches import router as admin_batches_router
 from app.api.v1.admin_groups import router as admin_groups_router
+from app.api.v1.admin_health import router as admin_health_router
 from app.api.v1.admin_orders import router as admin_orders_router
 from app.api.v1.admin_pochta import router as admin_pochta_router
 from app.api.v1.admin_shops import router as admin_shops_router
@@ -21,3 +22,4 @@ api_v1_router.include_router(admin_batches_router)
 api_v1_router.include_router(admin_shops_router)
 api_v1_router.include_router(admin_pochta_router)
 api_v1_router.include_router(admin_groups_router)
+api_v1_router.include_router(admin_health_router)
