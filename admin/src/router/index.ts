@@ -21,7 +21,7 @@ const router = createRouter({
         { path: 'shops/:id', name: 'shop-detail', component: () => import('../pages/ShopDetailPage.vue') },
         { path: 'pochta', name: 'pochta', component: () => import('../pages/PochtaTestPage.vue') },
         { path: 'groups', name: 'groups', component: () => import('../pages/GroupsPage.vue') },
-        { path: 'health', name: 'health', component: () => import('../pages/SystemHealthPage.vue') },
+        { path: 'system-health', name: 'system-health', component: () => import('../pages/SystemHealthPage.vue') },
       ],
     },
   ],

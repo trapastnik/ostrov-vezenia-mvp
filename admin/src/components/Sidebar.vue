@@ -19,7 +19,7 @@ const navItems = [
   { name: 'Магазины', path: '/shops', icon: '🏪', admin: true },
   { name: 'Группы отправок', path: '/groups', icon: '📦' },
   { name: 'Почта API', path: '/pochta', icon: '📮', admin: true },
-  { name: 'Здоровье системы', path: '/health', icon: '🩺', admin: true },
+  { name: 'Здоровье системы', path: '/system-health', icon: '🩺', admin: true },
 ]
 </script>
 
