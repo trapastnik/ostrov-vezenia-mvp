@@ -44,3 +44,26 @@ export async function runSystemTests(): Promise<SystemTestsResponse> {
   const { data } = await api.post<SystemTestsResponse>('/admin/health/run-tests')
   return data
 }
+
+export interface ServerMetrics {
+  ram_total_mb: number
+  ram_used_mb: number
+  ram_available_mb: number
+  ram_used_pct: number
+  load_1m: number
+  load_5m: number
+  load_15m: number
+  cpu_count: number
+  disk_total_gb: number
+  disk_used_gb: number
+  disk_free_gb: number
+  disk_used_pct: number
+  process_pid: number
+  process_ram_mb: number
+  process_ram_pct: number
+}
+
+export async function fetchServerMetrics(): Promise<ServerMetrics> {
+  const { data } = await api.get<ServerMetrics>('/admin/health/server')
+  return data
+}

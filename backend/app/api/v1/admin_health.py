@@ -1,6 +1,8 @@
 import logging
+import os
 import time
 from importlib.metadata import version as pkg_version
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
@@ -52,6 +54,95 @@ class SystemTestsResponse(BaseModel):
     passed: int
     failed: int
     total: int
+
+
+class ServerMetrics(BaseModel):
+    # RAM (хост)
+    ram_total_mb: int
+    ram_used_mb: int
+    ram_available_mb: int
+    ram_used_pct: float
+    # CPU load average (1m / 5m / 15m)
+    load_1m: float
+    load_5m: float
+    load_15m: float
+    cpu_count: int
+    # Диск
+    disk_total_gb: float
+    disk_used_gb: float
+    disk_free_gb: float
+    disk_used_pct: float
+    # Наш процесс
+    process_pid: int
+    process_ram_mb: float
+    process_ram_pct: float  # % от общего RAM хоста
+
+
+def _read_server_metrics() -> ServerMetrics:
+    # --- RAM из /proc/meminfo ---
+    meminfo: dict[str, int] = {}
+    for line in Path("/proc/meminfo").read_text().splitlines():
+        parts = line.split()
+        if len(parts) >= 2:
+            meminfo[parts[0].rstrip(":")] = int(parts[1])  # kB
+    ram_total_kb = meminfo.get("MemTotal", 0)
+    ram_available_kb = meminfo.get("MemAvailable", 0)
+    ram_used_kb = ram_total_kb - ram_available_kb
+    ram_used_pct = round(ram_used_kb / ram_total_kb * 100, 1) if ram_total_kb else 0.0
+
+    # --- Load average из /proc/loadavg ---
+    loadavg = Path("/proc/loadavg").read_text().split()
+    load_1m = float(loadavg[0])
+    load_5m = float(loadavg[1])
+    load_15m = float(loadavg[2])
+    try:
+        cpu_count = len(
+            [l for l in Path("/proc/cpuinfo").read_text().splitlines() if l.startswith("processor")]
+        ) or 1
+    except Exception:
+        cpu_count = 1
+
+    # --- Диск из /proc/mounts + statvfs ---
+    try:
+        st = os.statvfs("/")
+        disk_total = st.f_blocks * st.f_frsize
+        disk_free = st.f_bavail * st.f_frsize
+        disk_used = disk_total - disk_free
+        disk_total_gb = round(disk_total / 1024 ** 3, 1)
+        disk_used_gb = round(disk_used / 1024 ** 3, 1)
+        disk_free_gb = round(disk_free / 1024 ** 3, 1)
+        disk_used_pct = round(disk_used / disk_total * 100, 1) if disk_total else 0.0
+    except Exception:
+        disk_total_gb = disk_used_gb = disk_free_gb = disk_used_pct = 0.0  # type: ignore[assignment]
+
+    # --- Наш процесс из /proc/self/status ---
+    proc_ram_kb = 0
+    try:
+        for line in Path("/proc/self/status").read_text().splitlines():
+            if line.startswith("VmRSS:"):
+                proc_ram_kb = int(line.split()[1])
+                break
+    except Exception:
+        pass
+    proc_ram_pct = round(proc_ram_kb / ram_total_kb * 100, 2) if ram_total_kb else 0.0
+
+    return ServerMetrics(
+        ram_total_mb=ram_total_kb // 1024,
+        ram_used_mb=ram_used_kb // 1024,
+        ram_available_mb=ram_available_kb // 1024,
+        ram_used_pct=ram_used_pct,
+        load_1m=load_1m,
+        load_5m=load_5m,
+        load_15m=load_15m,
+        cpu_count=cpu_count,
+        disk_total_gb=disk_total_gb,
+        disk_used_gb=disk_used_gb,
+        disk_free_gb=disk_free_gb,
+        disk_used_pct=disk_used_pct,
+        process_pid=os.getpid(),
+        process_ram_mb=round(proc_ram_kb / 1024, 1),
+        process_ram_pct=proc_ram_pct,
+    )
 
 
 # --- Health check ---
@@ -295,3 +386,12 @@ async def run_system_tests(
         failed=failed,
         total=len(results),
     )
+
+
+# --- Server metrics ---
+
+@router.get("/server", response_model=ServerMetrics)
+async def get_server_metrics(
+    operator: Operator = Depends(get_current_operator),
+):
+    return _read_server_metrics()
