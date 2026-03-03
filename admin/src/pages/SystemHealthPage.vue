@@ -335,6 +335,32 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Server Info -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100">
+        <h2 class="font-semibold text-gray-800">Подключение к серверу</h2>
+      </div>
+      <div class="p-5 space-y-3">
+        <div class="flex items-center gap-3 text-sm">
+          <span class="text-gray-500 w-24 flex-shrink-0">SSH</span>
+          <code class="bg-gray-100 px-3 py-1.5 rounded-lg text-sm font-mono text-gray-800 select-all">ssh -p 49222 root@212.113.117.186</code>
+        </div>
+        <div class="flex items-center gap-3 text-sm">
+          <span class="text-gray-500 w-24 flex-shrink-0">Алиас</span>
+          <code class="bg-gray-100 px-3 py-1.5 rounded-lg text-sm font-mono text-gray-800 select-all">ssh ostrov</code>
+          <span class="text-xs text-gray-400">(~/.ssh/config)</span>
+        </div>
+        <div class="flex items-center gap-3 text-sm">
+          <span class="text-gray-500 w-24 flex-shrink-0">Проект</span>
+          <code class="bg-gray-100 px-3 py-1.5 rounded-lg text-sm font-mono text-gray-800">/opt/ostrov-vezeniya</code>
+        </div>
+        <div class="flex items-center gap-3 text-sm">
+          <span class="text-gray-500 w-24 flex-shrink-0">Деплой</span>
+          <span class="text-gray-700">GitHub Actions — автоматически при пуше в main</span>
+        </div>
+      </div>
+    </div>
+
     <!-- System Tests -->
     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
