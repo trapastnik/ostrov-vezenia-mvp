@@ -49,29 +49,33 @@ http://localhost:8000/shop
 ## Production (Docker Compose)
 
 ### Сервер
-- **OS:** Ubuntu 22.04+
+- **IP:** 212.113.117.186
+- **SSH:** `ssh -p 49222 root@212.113.117.186` (или `ssh ostrov` если настроен ~/.ssh/config)
+- **OS:** Ubuntu 24.04 LTS
 - **CPU:** 2 vCPU
-- **RAM:** 4 GB
-- **SSD:** 40 GB
-- **Провайдер:** Reg.ru VPS
+- **RAM:** 2 GB
+- **SSD:** 29 GB
+- **Провайдер:** Timeweb Cloud
 
 ### Домены
 | Домен | Назначение |
 |-------|-----------|
 | api.ostrov-vezeniya.ru | Backend API |
 | admin.ostrov-vezeniya.ru | Админ-панель (SPA) |
+| vr.ostrov-vezeniya.ru | VR Research (MkDocs) |
 
 ### DNS
 ```
-A  api.ostrov-vezeniya.ru    → <SERVER_IP>
-A  admin.ostrov-vezeniya.ru  → <SERVER_IP>
+A  api.ostrov-vezeniya.ru    → 212.113.117.186
+A  admin.ostrov-vezeniya.ru  → 212.113.117.186
+A  vr.ostrov-vezeniya.ru     → 212.113.117.186
 ```
 
 ### Установка
 
 ```bash
 # 1. Подключиться к серверу
-ssh root@<SERVER_IP>
+ssh -p 49222 root@212.113.117.186
 
 # 2. Установить Docker
 curl -fsSL https://get.docker.com | sh
