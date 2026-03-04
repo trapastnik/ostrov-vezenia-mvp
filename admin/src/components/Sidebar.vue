@@ -17,6 +17,7 @@ const navItems = [
   { name: 'Заказы', path: '/orders', icon: '📦' },
   { name: 'Партии', path: '/batches', icon: '📋' },
   { name: 'Магазины', path: '/shops', icon: '🏪', admin: true },
+  { name: 'Таможня (ПТД)', path: '/customs', icon: '🛃', admin: true },
   { name: 'Группы отправок', path: '/groups', icon: '📦' },
   { name: 'Почта API', path: '/pochta', icon: '📮', admin: true },
   { name: 'Здоровье системы', path: '/system-health', icon: '🩺', admin: true },

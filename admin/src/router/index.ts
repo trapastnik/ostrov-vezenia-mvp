@@ -20,6 +20,8 @@ const router = createRouter({
         { path: 'shops', name: 'shops', component: () => import('../pages/ShopsListPage.vue') },
         { path: 'shops/:id', name: 'shop-detail', component: () => import('../pages/ShopDetailPage.vue') },
         { path: 'pochta', name: 'pochta', component: () => import('../pages/PochtaTestPage.vue') },
+        { path: 'customs', name: 'customs', component: () => import('../pages/CustomsDeclarationsPage.vue') },
+        { path: 'customs/:id', name: 'customs-detail', component: () => import('../pages/CustomsDeclarationDetailPage.vue') },
         { path: 'groups', name: 'groups', component: () => import('../pages/GroupsPage.vue') },
         { path: 'system-health', name: 'system-health', component: () => import('../pages/SystemHealthPage.vue') },
       ],

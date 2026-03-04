@@ -17,6 +17,79 @@ export interface OrderItem {
   quantity: number
   price_kopecks: number
   weight_grams: number
+  tn_ved_code?: string
+  country_of_origin?: string
+  brand?: string
+}
+
+export interface CustomsDeclaration {
+  id: string
+  number: string
+  status: string
+  orders_count: number
+  items_count: number
+  total_weight_grams: number
+  total_value_kopecks: number
+  total_value_usd_cents: number
+  sender_name: string
+  sender_address: string
+  sender_inn: string
+  customs_rep_name: string | null
+  customs_rep_certificate: string | null
+  goods_location: string | null
+  operator_note: string | null
+  fts_reference: string | null
+  submitted_at: string | null
+  accepted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CustomsDeclarationOrder {
+  id: string
+  external_order_id: string
+  recipient_name: string
+  recipient_address: string
+  recipient_postal_code: string
+  items: OrderItem[]
+  total_amount_kopecks: number
+  total_weight_grams: number
+  customs_ready: boolean
+}
+
+export interface CustomsDeclarationDetail extends CustomsDeclaration {
+  orders: CustomsDeclarationOrder[]
+}
+
+export interface CompanySettings {
+  id: string
+  company_name: string
+  company_address: string
+  company_inn: string
+  company_kpp: string
+  company_postal_code: string
+  company_phone: string
+  customs_rep_name: string
+  customs_rep_certificate: string
+  customs_rep_inn: string
+  goods_location: string
+  usd_rate_kopecks: number
+}
+
+export const DECLARATION_STATUS_LABELS: Record<string, string> = {
+  draft: 'Черновик',
+  ready: 'Готова к подаче',
+  submitted: 'Подана',
+  accepted: 'Принята',
+  rejected: 'Отклонена',
+}
+
+export const DECLARATION_STATUS_COLORS: Record<string, string> = {
+  draft: 'bg-gray-100 text-gray-600',
+  ready: 'bg-blue-100 text-blue-800',
+  submitted: 'bg-yellow-100 text-yellow-800',
+  accepted: 'bg-green-100 text-green-800',
+  rejected: 'bg-red-100 text-red-800',
 }
 
 export interface Order {

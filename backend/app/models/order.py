@@ -31,6 +31,7 @@ class Order(Base, TimestampMixin):
         Index("ix_orders_status", "status"),
         Index("ix_orders_batch_id", "batch_id"),
         Index("ix_orders_created_at", "created_at"),
+        Index("ix_orders_customs_declaration_id", "customs_declaration_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=generate_uuid)
@@ -54,6 +55,9 @@ class Order(Base, TimestampMixin):
     internal_track_number: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
     batch_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("batches.id"), nullable=True)
     shipment_group_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("shipment_groups.id"), nullable=True)
+    customs_declaration_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("customs_declarations.id"), nullable=True
+    )
 
     # Тарифы: сохраняем при расчёте для отображения экономии в карточке
     public_tariff_kopecks: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -64,6 +68,7 @@ class Order(Base, TimestampMixin):
     shop = relationship("Shop", back_populates="orders")
     batch = relationship("Batch", back_populates="orders")
     shipment_group = relationship("ShipmentGroup", back_populates="orders")
+    customs_declaration = relationship("CustomsDeclaration", back_populates="orders")
     status_history = relationship("OrderStatusHistory", back_populates="order", order_by="OrderStatusHistory.created_at")
     tracking_events = relationship(
         "TrackingEvent", back_populates="order",

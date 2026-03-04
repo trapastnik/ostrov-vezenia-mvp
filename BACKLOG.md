@@ -48,8 +48,8 @@
 | 19 | Nginx production конфиг (api + admin + SSL-ready) | ✅ | `nginx/prod.conf` |
 | 20 | Скрипты деплоя (deploy-vps.sh, setup-ssl.sh, backup.sh) | ✅ | `scripts/` |
 | 21 | Деплой на VPS 212.113.117.186 | ✅ | Docker, PostgreSQL, Redis, Nginx, Celery — всё работает |
-| 22 | DNS: api.ostrov-vezeniya.ru + admin.ostrov-vezeniya.ru | 📋 | A-записи на 212.113.117.186 |
-| 23 | SSL: Let's Encrypt (setup-ssl.sh) | 📋 | После настройки DNS |
+| 22 | DNS: api.ostrov-vezeniya.ru + admin.ostrov-vezeniya.ru | ✅ | A-записи на 212.113.117.186 |
+| 23 | SSL: Let's Encrypt (setup-ssl.sh) | ✅ | Auto-renew настроен |
 | 24 | Celery + Redis: фоновые задачи | ✅ | celery_app.py работает на VPS |
 | 25 | Webhook: уведомления магазину при смене статуса (HMAC-SHA256) | 📋 | webhook.py — скаффолд есть |
 | 26 | Интеграционное тестирование: полный цикл расчёт → заказ → статус | 📋 | |
@@ -170,11 +170,11 @@
 
 ---
 
-## Последнее обновление: 2026-02-21
+## Последнее обновление: 2026-03-04
 
 ### Итого
-- **Сделано**: 58 задач
+- **Сделано**: 60 задач
 - **В работе**: 0
-- **Backlog**: 31 задача
+- **Backlog**: 29 задач
 - **Репозиторий**: https://github.com/trapastnik/ostrov-vezenia-mvp
 - **VPS**: 212.113.117.186

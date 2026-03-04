@@ -13,6 +13,10 @@ services:
       timeout: 5s
       retries: 5
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   redis:
     image: redis:7-alpine
@@ -22,6 +26,10 @@ services:
       timeout: 5s
       retries: 5
     restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   backend:
     build: ./backend
@@ -36,6 +44,9 @@ services:
       redis:
         condition: service_healthy
     restart: always
+    networks:
+      - default
+      - proxy
 
   celery_worker:
     build: ./backend
@@ -53,21 +64,34 @@ services:
 
   nginx:
     image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
       - ./nginx/prod.conf:/etc/nginx/conf.d/default.conf
       - ./admin/dist:/usr/share/nginx/html
-      - certbot_etc:/etc/letsencrypt
-      - certbot_var:/var/lib/letsencrypt
-      - certbot_www:/var/www/certbot
     depends_on:
       - backend
     restart: always
+    networks:
+      - default
+      - proxy
+    labels:
+      # API
+      - "traefik.enable=true"
+      - "traefik.http.routers.post-api.rule=Host(`api.ostrov-vezeniya.ru`)"
+      - "traefik.http.routers.post-api.entrypoints=websecure"
+      - "traefik.http.routers.post-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.post-api.loadbalancer.server.port=80"
+      # Admin panel
+      - "traefik.http.routers.post-admin.rule=Host(`admin.ostrov-vezeniya.ru`)"
+      - "traefik.http.routers.post-admin.entrypoints=websecure"
+      - "traefik.http.routers.post-admin.tls.certresolver=letsencrypt"
+      # Доступ по IP (временно, пока нет DNS)
+      - "traefik.http.routers.post-ip.rule=PathPrefix(`/api`) || PathPrefix(`/shop`) || PathPrefix(`/health`)"
+      - "traefik.http.routers.post-ip.entrypoints=websecure"
+      - "traefik.http.routers.post-ip.priority=10"
 
 volumes:
   postgres_data:
-  certbot_etc:
-  certbot_var:
-  certbot_www:
+
+networks:
+  proxy:
+    external: true

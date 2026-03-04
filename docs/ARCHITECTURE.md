@@ -17,7 +17,7 @@
 
 | Компонент | Технология | Версия |
 |-----------|-----------|--------|
-| Backend API | Python + FastAPI (async) | 3.12 |
+| Backend API | Python + FastAPI (async) | 3.11+ |
 | ORM | SQLAlchemy (async) | 2.0 |
 | БД (dev) | SQLite + aiosqlite | — |
 | БД (prod) | PostgreSQL + asyncpg | 16 |
