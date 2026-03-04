@@ -1,4 +1,5 @@
 """Бизнес-логика таможенных деклараций ПТД-ЭГ."""
+import copy
 import uuid
 from datetime import datetime, timezone
 
@@ -6,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.models.company_settings import CompanySettings
 from app.models.customs_declaration import CustomsDeclaration
@@ -188,7 +190,8 @@ async def update_order_items_customs(
     if not order:
         raise HTTPException(404, "Заказ не найден")
 
-    items = list(order.items)
+    # Deep copy to ensure SQLAlchemy detects changes in JSON field
+    items = copy.deepcopy(order.items)
     for upd in updates:
         idx = upd["item_index"]
         if idx < 0 or idx >= len(items):
@@ -198,8 +201,8 @@ async def update_order_items_customs(
         if upd.get("brand") is not None:
             items[idx]["brand"] = upd["brand"]
 
-    # Force SQLAlchemy change detection on JSON field
     order.items = items
+    flag_modified(order, "items")
     await db.commit()
     await db.refresh(order)
     return order

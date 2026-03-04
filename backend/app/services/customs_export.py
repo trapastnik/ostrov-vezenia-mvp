@@ -134,10 +134,18 @@ async def generate_pdf(db: AsyncSession, declaration_id: uuid.UUID) -> io.BytesI
 
     declaration = await _get_declaration(db, declaration_id)
 
-    # Регистрация кириллического шрифта
-    font_path = os.path.join(os.path.dirname(__file__), "fonts", "DejaVuSans.ttf")
+    # Регистрация кириллического шрифта (regular + bold)
+    fonts_dir = os.path.join(os.path.dirname(__file__), "fonts")
+    font_path = os.path.join(fonts_dir, "DejaVuSans.ttf")
+    font_bold_path = os.path.join(fonts_dir, "DejaVuSans-Bold.ttf")
     if os.path.exists(font_path):
-        pdfmetrics.registerFont(TTFont("DejaVu", font_path))
+        if "DejaVu" not in pdfmetrics.getRegisteredFontNames():
+            pdfmetrics.registerFont(TTFont("DejaVu", font_path))
+            bold = font_bold_path if os.path.exists(font_bold_path) else font_path
+            pdfmetrics.registerFont(TTFont("DejaVu-Bold", bold))
+            from reportlab.lib.fonts import addMapping
+            addMapping("DejaVu", 0, 0, "DejaVu")       # normal
+            addMapping("DejaVu", 1, 0, "DejaVu-Bold")   # bold
         font_name = "DejaVu"
     else:
         font_name = "Helvetica"
