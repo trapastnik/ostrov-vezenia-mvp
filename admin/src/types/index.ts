@@ -129,7 +129,22 @@ export interface StatusHistoryEntry {
   created_at: string
 }
 
+export interface CustomsDeclarationBrief {
+  id: string
+  number: string
+  status: string
+  orders_count: number
+  items_count: number
+  total_weight_grams: number
+  total_value_kopecks: number
+  total_value_usd_cents: number
+  sender_name: string
+  sender_inn: string
+  created_at: string
+}
+
 export interface OrderDetail extends Order {
+  customs_declaration: CustomsDeclarationBrief | null
   history: StatusHistoryEntry[]
 }
 

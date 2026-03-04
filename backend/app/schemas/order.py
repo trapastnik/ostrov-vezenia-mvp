@@ -81,6 +81,22 @@ class OrderTrackingResponse(BaseModel):
     history: list[StatusHistoryEntry]
 
 
+class CustomsDeclarationBrief(BaseModel):
+    id: UUID
+    number: str
+    status: str
+    orders_count: int
+    items_count: int
+    total_weight_grams: int
+    total_value_kopecks: int
+    total_value_usd_cents: int
+    sender_name: str
+    sender_inn: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class OrderDetailResponse(BaseModel):
     id: UUID
     external_order_id: str
@@ -97,7 +113,16 @@ class OrderDetailResponse(BaseModel):
     delivery_cost_kopecks: int
     customs_fee_kopecks: int
     track_number: str | None
+    internal_track_number: str | None = None
     batch_id: UUID | None
+    customs_declaration_id: UUID | None = None
+    customs_declaration_number: str | None = None
+    customs_declaration_status: str | None = None
+    customs_declaration: CustomsDeclarationBrief | None = None
+    public_tariff_kopecks: int | None = None
+    contract_tariff_kopecks: int | None = None
+    tariff_savings_kopecks: int | None = None
+    tariff_savings_percent: float | None = None
     created_at: datetime
     updated_at: datetime
     history: list[StatusHistoryEntry]

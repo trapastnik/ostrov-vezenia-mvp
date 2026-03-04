@@ -81,7 +81,13 @@ async def change_order_status(
 
 async def get_order_with_history(db: AsyncSession, order_id: uuid.UUID) -> Order | None:
     result = await db.execute(
-        select(Order).where(Order.id == order_id).options(selectinload(Order.status_history), selectinload(Order.shop))
+        select(Order)
+        .where(Order.id == order_id)
+        .options(
+            selectinload(Order.status_history),
+            selectinload(Order.shop),
+            selectinload(Order.customs_declaration),
+        )
     )
     return result.scalar_one_or_none()
 

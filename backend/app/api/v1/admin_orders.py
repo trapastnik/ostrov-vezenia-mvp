@@ -8,6 +8,7 @@ from app.core.dependencies import get_current_operator, get_db
 from app.models.operator import Operator
 from app.schemas.order import (
     ChangeStatusRequest,
+    CustomsDeclarationBrief,
     OrderDetailResponse,
     OrderListResponse,
     OrderResponse,
@@ -64,8 +65,13 @@ async def get_order_detail(
     resp = OrderResponse.model_validate(order)
     if order.shop:
         resp.shop_name = order.shop.name
+    if order.customs_declaration:
+        resp.customs_declaration_number = order.customs_declaration.number
+        resp.customs_declaration_status = order.customs_declaration.status
     data = resp.model_dump()
     data["history"] = history
+    if order.customs_declaration:
+        data["customs_declaration"] = CustomsDeclarationBrief.model_validate(order.customs_declaration)
     return OrderDetailResponse(**data)
 
 

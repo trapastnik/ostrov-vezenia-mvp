@@ -219,30 +219,45 @@ onMounted(load)
         </div>
 
         <!-- Таможенная декларация -->
-        <div class="bg-white rounded-xl border border-gray-200 p-5" :class="order.customs_declaration_id ? '' : 'lg:col-span-2'">
+        <div class="bg-white rounded-xl border border-gray-200 p-5" :class="order.customs_declaration ? '' : 'lg:col-span-2'">
           <h3 class="font-semibold text-gray-800 mb-4">Таможенная декларация</h3>
-          <template v-if="order.customs_declaration_number">
-            <div class="flex items-center gap-3 mb-3">
+          <template v-if="order.customs_declaration">
+            <div class="flex items-center gap-3 mb-4">
               <router-link
-                :to="`/customs/${order.customs_declaration_id}`"
-                class="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                :to="`/customs/${order.customs_declaration.id}`"
+                class="text-blue-600 hover:text-blue-800 font-semibold text-sm"
               >
-                {{ order.customs_declaration_number }}
+                {{ order.customs_declaration.number }}
               </router-link>
               <span
-                :class="DECLARATION_STATUS_COLORS[order.customs_declaration_status || ''] || 'bg-gray-100 text-gray-600'"
+                :class="DECLARATION_STATUS_COLORS[order.customs_declaration.status] || 'bg-gray-100 text-gray-600'"
                 class="px-2 py-0.5 rounded-full text-xs font-medium"
               >
-                {{ DECLARATION_STATUS_LABELS[order.customs_declaration_status || ''] || order.customs_declaration_status }}
+                {{ DECLARATION_STATUS_LABELS[order.customs_declaration.status] || order.customs_declaration.status }}
               </span>
             </div>
-            <div class="text-sm text-gray-500">
-              <span v-if="hasCustomsData" class="text-green-600">Таможенные данные заполнены</span>
-              <span v-else class="text-yellow-600">Требуется заполнение таможенных данных</span>
+            <dl class="space-y-2 text-sm">
+              <div class="flex justify-between"><dt class="text-gray-500">Отправитель</dt><dd class="text-gray-800">{{ order.customs_declaration.sender_name }}</dd></div>
+              <div class="flex justify-between"><dt class="text-gray-500">ИНН</dt><dd class="text-gray-800 font-mono text-xs">{{ order.customs_declaration.sender_inn }}</dd></div>
+              <div class="flex justify-between"><dt class="text-gray-500">Заказов в декл.</dt><dd class="text-gray-800">{{ order.customs_declaration.orders_count }}</dd></div>
+              <div class="flex justify-between"><dt class="text-gray-500">Товаров</dt><dd class="text-gray-800">{{ order.customs_declaration.items_count }}</dd></div>
+              <div class="flex justify-between"><dt class="text-gray-500">Общий вес</dt><dd class="text-gray-800">{{ (order.customs_declaration.total_weight_grams / 1000).toFixed(1) }} кг</dd></div>
+              <div class="flex justify-between"><dt class="text-gray-500">Стоимость</dt><dd class="text-gray-800">{{ formatPrice(order.customs_declaration.total_value_kopecks) }}</dd></div>
+            </dl>
+            <div class="mt-3 pt-3 border-t border-gray-100">
+              <span v-if="hasCustomsData" class="text-xs text-green-600">Таможенные данные товаров заполнены</span>
+              <span v-else class="text-xs text-yellow-600">Требуется заполнение таможенных данных</span>
             </div>
+            <router-link
+              :to="`/customs/${order.customs_declaration.id}`"
+              class="mt-3 inline-block text-sm text-blue-600 hover:text-blue-800"
+            >
+              Открыть декларацию &rarr;
+            </router-link>
           </template>
           <template v-else>
             <p class="text-sm text-gray-400">Заказ не включён в декларацию</p>
+            <p class="text-xs text-gray-300 mt-1">Создайте декларацию в разделе «Таможня (ПТД)» или из списка заказов</p>
           </template>
         </div>
 
