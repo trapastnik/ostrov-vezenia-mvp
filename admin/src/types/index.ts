@@ -110,6 +110,9 @@ export interface Order {
   track_number: string | null
   internal_track_number: string | null
   batch_id: string | null
+  customs_declaration_id: string | null
+  customs_declaration_number: string | null
+  customs_declaration_status: string | null
   shipment_group_id: string | null
   public_tariff_kopecks: number | null
   contract_tariff_kopecks: number | null

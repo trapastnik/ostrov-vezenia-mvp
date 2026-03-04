@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { fetchOrders } from '../api/orders'
 import OrderStatusBadge from '../components/OrderStatusBadge.vue'
 import Pagination from '../components/Pagination.vue'
-import { STATUS_LABELS } from '../types'
+import { STATUS_LABELS, DECLARATION_STATUS_COLORS } from '../types'
 import type { Order } from '../types'
 
 const router = useRouter()
@@ -81,6 +81,7 @@ function formatDate(d: string): string {
             <th class="px-5 py-3 text-center">SKU</th>
             <th class="px-5 py-3">Сумма</th>
             <th class="px-5 py-3">Статус</th>
+            <th class="px-5 py-3">Декларация</th>
             <th class="px-5 py-3">Дата</th>
           </tr>
         </thead>
@@ -97,10 +98,23 @@ function formatDate(d: string): string {
             <td class="px-5 py-3 text-sm text-gray-500 text-center">{{ order.items.length }}</td>
             <td class="px-5 py-3 text-sm text-gray-700">{{ kopecksToRubles(order.total_amount_kopecks) }} &#8381;</td>
             <td class="px-5 py-3"><OrderStatusBadge :status="order.status" /></td>
+            <td class="px-5 py-3">
+              <router-link
+                v-if="order.customs_declaration_number"
+                :to="`/customs/${order.customs_declaration_id}`"
+                @click.stop
+                class="inline-flex items-center gap-1"
+              >
+                <span :class="DECLARATION_STATUS_COLORS[order.customs_declaration_status || ''] || 'bg-gray-100 text-gray-600'" class="px-2 py-0.5 rounded-full text-xs font-medium">
+                  {{ order.customs_declaration_number }}
+                </span>
+              </router-link>
+              <span v-else class="text-xs text-gray-300">—</span>
+            </td>
             <td class="px-5 py-3 text-sm text-gray-500">{{ formatDate(order.created_at) }}</td>
           </tr>
           <tr v-if="orders.length === 0">
-            <td colspan="7" class="px-5 py-8 text-center text-sm text-gray-400">Нет заказов</td>
+            <td colspan="8" class="px-5 py-8 text-center text-sm text-gray-400">Нет заказов</td>
           </tr>
         </tbody>
       </table>

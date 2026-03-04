@@ -47,6 +47,9 @@ class OrderResponse(BaseModel):
     customs_fee_kopecks: int
     track_number: str | None
     batch_id: UUID | None
+    customs_declaration_id: UUID | None = None
+    customs_declaration_number: str | None = None
+    customs_declaration_status: str | None = None
     created_at: datetime
     updated_at: datetime
 

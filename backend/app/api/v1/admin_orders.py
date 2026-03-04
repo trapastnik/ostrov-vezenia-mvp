@@ -35,6 +35,9 @@ async def list_all_orders(
         resp = OrderResponse.model_validate(o)
         if o.shop:
             resp.shop_name = o.shop.name
+        if o.customs_declaration:
+            resp.customs_declaration_number = o.customs_declaration.number
+            resp.customs_declaration_status = o.customs_declaration.status
         items.append(resp)
 
     return OrderListResponse(

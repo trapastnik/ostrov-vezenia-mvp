@@ -119,7 +119,7 @@ async def list_orders(
     total_result = await db.execute(count_query)
     total = total_result.scalar()
 
-    query = query.options(selectinload(Order.shop)).order_by(Order.created_at.desc()).offset((page - 1) * per_page).limit(per_page)
+    query = query.options(selectinload(Order.shop), selectinload(Order.customs_declaration)).order_by(Order.created_at.desc()).offset((page - 1) * per_page).limit(per_page)
     result = await db.execute(query)
     orders = list(result.scalars().all())
 
