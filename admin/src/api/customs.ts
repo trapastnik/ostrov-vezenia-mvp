@@ -74,10 +74,9 @@ export async function downloadDeclarationCsv(id: string): Promise<void> {
   window.URL.revokeObjectURL(url)
 }
 
-export async function downloadDeclarationPdf(id: string): Promise<void> {
+export async function fetchDeclarationPdfUrl(id: string): Promise<string> {
   const response = await api.get(`/admin/customs/declarations/${id}/export/pdf`, {
     responseType: 'blob',
   })
-  const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
-  window.open(url, '_blank')
+  return window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
 }

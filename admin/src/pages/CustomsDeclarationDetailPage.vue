@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   fetchDeclaration,
@@ -8,7 +8,7 @@ import {
   deleteDeclaration,
   updateOrderItemsCustoms,
   downloadDeclarationCsv,
-  downloadDeclarationPdf,
+  fetchDeclarationPdfUrl,
 } from '../api/customs'
 import CustomsItemEditor from '../components/CustomsItemEditor.vue'
 import type { CustomsDeclarationDetail, CustomsDeclarationOrder } from '../types'
@@ -22,6 +22,11 @@ const loading = ref(true)
 const error = ref('')
 const actionMsg = ref('')
 const actionError = ref('')
+
+// Tabs
+const activeTab = ref<'data' | 'pdf'>('data')
+const pdfUrl = ref('')
+const pdfLoading = ref(false)
 
 // Item editor
 const editingOrder = ref<CustomsDeclarationOrder | null>(null)
@@ -98,12 +103,27 @@ async function handleExportCsv() {
   }
 }
 
-async function handleExportPdf() {
+async function switchToPdf() {
+  activeTab.value = 'pdf'
+  if (pdfUrl.value) return // already loaded
+  pdfLoading.value = true
+  actionError.value = ''
   try {
-    await downloadDeclarationPdf(route.params.id as string)
+    pdfUrl.value = await fetchDeclarationPdfUrl(route.params.id as string)
   } catch {
-    actionError.value = 'Ошибка открытия PDF'
+    actionError.value = 'Ошибка загрузки PDF'
+    activeTab.value = 'data'
+  } finally {
+    pdfLoading.value = false
   }
+}
+
+function refreshPdf() {
+  if (pdfUrl.value) {
+    window.URL.revokeObjectURL(pdfUrl.value)
+    pdfUrl.value = ''
+  }
+  switchToPdf()
 }
 
 function openEditor(order: CustomsDeclarationOrder) {
@@ -115,6 +135,11 @@ async function handleSaveItems(orderId: string, updates: { item_index: number; t
     await updateOrderItemsCustoms(orderId, updates)
     editingOrder.value = null
     await load()
+    // Invalidate PDF cache after data change
+    if (pdfUrl.value) {
+      window.URL.revokeObjectURL(pdfUrl.value)
+      pdfUrl.value = ''
+    }
     actionMsg.value = 'Таможенные данные сохранены'
     setTimeout(() => actionMsg.value = '', 3000)
   } catch (e: any) {
@@ -143,6 +168,12 @@ function isCustomsReady(order: CustomsDeclarationOrder): boolean {
 }
 
 onMounted(load)
+
+onUnmounted(() => {
+  if (pdfUrl.value) {
+    window.URL.revokeObjectURL(pdfUrl.value)
+  }
+})
 </script>
 
 <template>
@@ -198,13 +229,6 @@ onMounted(load)
         </button>
 
         <button
-          @click="handleExportPdf"
-          class="px-3 py-1.5 text-sm rounded-lg border border-orange-300 text-orange-700 hover:bg-orange-50 cursor-pointer"
-        >
-          PDF
-        </button>
-
-        <button
           v-if="declaration.status === 'draft'"
           @click="handleDelete"
           class="ml-auto px-3 py-1.5 text-sm rounded-lg border border-red-300 text-red-600 hover:bg-red-50 cursor-pointer"
@@ -223,134 +247,185 @@ onMounted(load)
         </ul>
       </div>
 
-      <!-- Summary -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white rounded-xl border border-gray-200 p-4">
-          <div class="text-xs text-gray-500">Заказов</div>
-          <div class="text-xl font-bold text-gray-800">{{ declaration.orders_count }}</div>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-200 p-4">
-          <div class="text-xs text-gray-500">Товаров</div>
-          <div class="text-xl font-bold text-gray-800">{{ declaration.items_count }}</div>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-200 p-4">
-          <div class="text-xs text-gray-500">Вес</div>
-          <div class="text-xl font-bold text-gray-800">{{ (declaration.total_weight_grams / 1000).toFixed(1) }} <span class="text-sm font-normal text-gray-500">кг</span></div>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-200 p-4">
-          <div class="text-xs text-gray-500">Стоимость</div>
-          <div class="text-lg font-bold text-gray-800">{{ formatRub(declaration.total_value_kopecks) }} <span class="text-sm font-normal text-gray-500">&#8381;</span></div>
-          <div class="text-sm text-gray-500">{{ formatUsd(declaration.total_value_usd_cents) }}</div>
-        </div>
-      </div>
-
-      <!-- Sender & customs rep info -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <div class="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 class="font-semibold text-gray-800 mb-3">Отправитель</h3>
-          <dl class="space-y-2 text-sm">
-            <div class="flex"><dt class="w-20 text-gray-500 shrink-0">Название</dt><dd class="text-gray-800">{{ declaration.sender_name || '—' }}</dd></div>
-            <div class="flex"><dt class="w-20 text-gray-500 shrink-0">ИНН</dt><dd class="text-gray-800 font-mono">{{ declaration.sender_inn || '—' }}</dd></div>
-            <div class="flex"><dt class="w-20 text-gray-500 shrink-0">Адрес</dt><dd class="text-gray-800">{{ declaration.sender_address || '—' }}</dd></div>
-          </dl>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 class="font-semibold text-gray-800 mb-3">Таможенный представитель</h3>
-          <dl class="space-y-2 text-sm">
-            <div class="flex"><dt class="w-32 text-gray-500 shrink-0">Наименование</dt><dd class="text-gray-800">{{ declaration.customs_rep_name || '—' }}</dd></div>
-            <div class="flex"><dt class="w-32 text-gray-500 shrink-0">Свидетельство</dt><dd class="text-gray-800 font-mono">{{ declaration.customs_rep_certificate || '—' }}</dd></div>
-          </dl>
-          <div v-if="declaration.goods_location" class="mt-3 pt-3 border-t border-gray-100">
-            <div class="text-xs text-gray-500 mb-1">Место нахождения товаров</div>
-            <div class="text-sm text-gray-800">{{ declaration.goods_location }}</div>
-          </div>
-          <div v-if="declaration.operator_note" class="mt-3 pt-3 border-t border-gray-100">
-            <div class="text-xs text-gray-500 mb-1">Примечание оператора</div>
-            <div class="text-sm text-gray-800">{{ declaration.operator_note }}</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- FTS reference -->
-      <div v-if="declaration.fts_reference" class="mb-6 bg-white rounded-xl border border-gray-200 p-4">
-        <span class="text-xs text-gray-500">Рег. номер ФТС:</span>
-        <span class="ml-2 font-mono text-sm text-gray-800">{{ declaration.fts_reference }}</span>
-      </div>
-
-      <!-- Orders -->
-      <h3 class="text-lg font-semibold text-gray-800 mb-4">Заказы в декларации ({{ declaration.orders.length }})</h3>
-
-      <div class="space-y-4">
-        <div
-          v-for="(order, orderIdx) in declaration.orders"
-          :key="order.id"
-          class="bg-white rounded-xl border border-gray-200 p-5"
+      <!-- Tabs -->
+      <div class="flex border-b border-gray-200 mb-6">
+        <button
+          @click="activeTab = 'data'"
+          class="px-4 py-2.5 text-sm font-medium border-b-2 cursor-pointer transition-colors"
+          :class="activeTab === 'data' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
         >
-          <div class="flex items-center gap-3 mb-3">
-            <span class="text-sm font-bold text-gray-800">#{{ orderIdx + 1 }}</span>
-            <span class="text-sm text-gray-600">{{ order.external_order_id }}</span>
-            <span
-              class="px-2 py-0.5 rounded-full text-xs font-medium"
-              :class="isCustomsReady(order) ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'"
-            >
-              {{ isCustomsReady(order) ? 'Данные заполнены' : 'Требуется заполнение' }}
-            </span>
-            <button
-              v-if="declaration.status === 'draft'"
-              @click="openEditor(order)"
-              class="ml-auto text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
-            >
-              Редактировать
-            </button>
-          </div>
+          Данные
+        </button>
+        <button
+          @click="switchToPdf()"
+          class="px-4 py-2.5 text-sm font-medium border-b-2 cursor-pointer transition-colors"
+          :class="activeTab === 'pdf' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'"
+        >
+          PDF
+        </button>
+      </div>
 
-          <!-- Recipient -->
-          <div class="text-sm text-gray-600 mb-3">
-            {{ order.recipient_name }} | {{ order.recipient_address }}, {{ order.recipient_postal_code }}
+      <!-- Tab: Data -->
+      <div v-if="activeTab === 'data'">
+        <!-- Summary -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <div class="text-xs text-gray-500">Заказов</div>
+            <div class="text-xl font-bold text-gray-800">{{ declaration.orders_count }}</div>
           </div>
-
-          <!-- Items table -->
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-100">
-                <th class="pb-2 font-medium">Товар</th>
-                <th class="pb-2 font-medium">Код ТН ВЭД</th>
-                <th class="pb-2 font-medium">Страна</th>
-                <th class="pb-2 font-medium">Бренд</th>
-                <th class="pb-2 font-medium text-center">Кол-во</th>
-                <th class="pb-2 font-medium text-right">Вес</th>
-                <th class="pb-2 font-medium text-right">Стоимость</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(item, i) in order.items" :key="i" class="border-b border-gray-50">
-                <td class="py-2 text-gray-800">{{ item.name }}</td>
-                <td class="py-2 font-mono text-xs" :class="item.tn_ved_code ? 'text-gray-800' : 'text-red-400'">
-                  {{ item.tn_ved_code || 'не указан' }}
-                </td>
-                <td class="py-2 font-mono text-xs" :class="item.country_of_origin ? 'text-gray-800' : 'text-red-400'">
-                  {{ item.country_of_origin || 'не указана' }}
-                </td>
-                <td class="py-2 text-gray-600 text-xs">{{ item.brand || '—' }}</td>
-                <td class="py-2 text-gray-600 text-center">{{ item.quantity }}</td>
-                <td class="py-2 text-gray-600 text-right">{{ (item.weight_grams * item.quantity / 1000).toFixed(2) }} кг</td>
-                <td class="py-2 text-gray-800 text-right">{{ formatRub(item.price_kopecks * item.quantity) }} &#8381;</td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <div class="text-xs text-gray-500">Товаров</div>
+            <div class="text-xl font-bold text-gray-800">{{ declaration.items_count }}</div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <div class="text-xs text-gray-500">Вес</div>
+            <div class="text-xl font-bold text-gray-800">{{ (declaration.total_weight_grams / 1000).toFixed(1) }} <span class="text-sm font-normal text-gray-500">кг</span></div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-4">
+            <div class="text-xs text-gray-500">Стоимость</div>
+            <div class="text-lg font-bold text-gray-800">{{ formatRub(declaration.total_value_kopecks) }} <span class="text-sm font-normal text-gray-500">&#8381;</span></div>
+            <div class="text-sm text-gray-500">{{ formatUsd(declaration.total_value_usd_cents) }}</div>
+          </div>
         </div>
 
-        <div v-if="declaration.orders.length === 0" class="text-center text-gray-400 py-8">
-          Нет заказов в декларации
+        <!-- Sender & customs rep info -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 class="font-semibold text-gray-800 mb-3">Отправитель</h3>
+            <dl class="space-y-2 text-sm">
+              <div class="flex"><dt class="w-20 text-gray-500 shrink-0">Название</dt><dd class="text-gray-800">{{ declaration.sender_name || '—' }}</dd></div>
+              <div class="flex"><dt class="w-20 text-gray-500 shrink-0">ИНН</dt><dd class="text-gray-800 font-mono">{{ declaration.sender_inn || '—' }}</dd></div>
+              <div class="flex"><dt class="w-20 text-gray-500 shrink-0">Адрес</dt><dd class="text-gray-800">{{ declaration.sender_address || '—' }}</dd></div>
+            </dl>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 class="font-semibold text-gray-800 mb-3">Таможенный представитель</h3>
+            <dl class="space-y-2 text-sm">
+              <div class="flex"><dt class="w-32 text-gray-500 shrink-0">Наименование</dt><dd class="text-gray-800">{{ declaration.customs_rep_name || '—' }}</dd></div>
+              <div class="flex"><dt class="w-32 text-gray-500 shrink-0">Свидетельство</dt><dd class="text-gray-800 font-mono">{{ declaration.customs_rep_certificate || '—' }}</dd></div>
+            </dl>
+            <div v-if="declaration.goods_location" class="mt-3 pt-3 border-t border-gray-100">
+              <div class="text-xs text-gray-500 mb-1">Место нахождения товаров</div>
+              <div class="text-sm text-gray-800">{{ declaration.goods_location }}</div>
+            </div>
+            <div v-if="declaration.operator_note" class="mt-3 pt-3 border-t border-gray-100">
+              <div class="text-xs text-gray-500 mb-1">Примечание оператора</div>
+              <div class="text-sm text-gray-800">{{ declaration.operator_note }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FTS reference -->
+        <div v-if="declaration.fts_reference" class="mb-6 bg-white rounded-xl border border-gray-200 p-4">
+          <span class="text-xs text-gray-500">Рег. номер ФТС:</span>
+          <span class="ml-2 font-mono text-sm text-gray-800">{{ declaration.fts_reference }}</span>
+        </div>
+
+        <!-- Orders -->
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Заказы в декларации ({{ declaration.orders.length }})</h3>
+
+        <div class="space-y-4">
+          <div
+            v-for="(order, orderIdx) in declaration.orders"
+            :key="order.id"
+            class="bg-white rounded-xl border border-gray-200 p-5"
+          >
+            <div class="flex items-center gap-3 mb-3">
+              <span class="text-sm font-bold text-gray-800">#{{ orderIdx + 1 }}</span>
+              <span class="text-sm text-gray-600">{{ order.external_order_id }}</span>
+              <span
+                class="px-2 py-0.5 rounded-full text-xs font-medium"
+                :class="isCustomsReady(order) ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'"
+              >
+                {{ isCustomsReady(order) ? 'Данные заполнены' : 'Требуется заполнение' }}
+              </span>
+              <button
+                v-if="declaration.status === 'draft'"
+                @click="openEditor(order)"
+                class="ml-auto text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
+              >
+                Редактировать
+              </button>
+            </div>
+
+            <!-- Recipient -->
+            <div class="text-sm text-gray-600 mb-3">
+              {{ order.recipient_name }} | {{ order.recipient_address }}, {{ order.recipient_postal_code }}
+            </div>
+
+            <!-- Items table -->
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-100">
+                  <th class="pb-2 font-medium">Товар</th>
+                  <th class="pb-2 font-medium">Код ТН ВЭД</th>
+                  <th class="pb-2 font-medium">Страна</th>
+                  <th class="pb-2 font-medium">Бренд</th>
+                  <th class="pb-2 font-medium text-center">Кол-во</th>
+                  <th class="pb-2 font-medium text-right">Вес</th>
+                  <th class="pb-2 font-medium text-right">Стоимость</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, i) in order.items" :key="i" class="border-b border-gray-50">
+                  <td class="py-2 text-gray-800">{{ item.name }}</td>
+                  <td class="py-2 font-mono text-xs" :class="item.tn_ved_code ? 'text-gray-800' : 'text-red-400'">
+                    {{ item.tn_ved_code || 'не указан' }}
+                  </td>
+                  <td class="py-2 font-mono text-xs" :class="item.country_of_origin ? 'text-gray-800' : 'text-red-400'">
+                    {{ item.country_of_origin || 'не указана' }}
+                  </td>
+                  <td class="py-2 text-gray-600 text-xs">{{ item.brand || '—' }}</td>
+                  <td class="py-2 text-gray-600 text-center">{{ item.quantity }}</td>
+                  <td class="py-2 text-gray-600 text-right">{{ (item.weight_grams * item.quantity / 1000).toFixed(2) }} кг</td>
+                  <td class="py-2 text-gray-800 text-right">{{ formatRub(item.price_kopecks * item.quantity) }} &#8381;</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-if="declaration.orders.length === 0" class="text-center text-gray-400 py-8">
+            Нет заказов в декларации
+          </div>
+        </div>
+
+        <!-- Dates -->
+        <div class="mt-6 text-xs text-gray-400 space-y-1">
+          <div>Создана: {{ formatDate(declaration.created_at) }}</div>
+          <div v-if="declaration.submitted_at">Подана: {{ formatDate(declaration.submitted_at) }}</div>
+          <div v-if="declaration.accepted_at">Принята: {{ formatDate(declaration.accepted_at) }}</div>
+          <div>Обновлена: {{ formatDate(declaration.updated_at) }}</div>
         </div>
       </div>
 
-      <!-- Dates -->
-      <div class="mt-6 text-xs text-gray-400 space-y-1">
-        <div>Создана: {{ formatDate(declaration.created_at) }}</div>
-        <div v-if="declaration.submitted_at">Подана: {{ formatDate(declaration.submitted_at) }}</div>
-        <div v-if="declaration.accepted_at">Принята: {{ formatDate(declaration.accepted_at) }}</div>
-        <div>Обновлена: {{ formatDate(declaration.updated_at) }}</div>
+      <!-- Tab: PDF -->
+      <div v-if="activeTab === 'pdf'">
+        <div v-if="pdfLoading" class="flex items-center justify-center py-20 text-gray-400">
+          <svg class="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+          Загрузка PDF...
+        </div>
+        <div v-else-if="pdfUrl" class="space-y-3">
+          <div class="flex items-center gap-2">
+            <button
+              @click="refreshPdf"
+              class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 cursor-pointer"
+            >
+              Обновить
+            </button>
+            <a
+              :href="pdfUrl"
+              :download="`ptd-eg-${declaration.number}.pdf`"
+              class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+            >
+              Скачать
+            </a>
+          </div>
+          <iframe
+            :src="pdfUrl"
+            class="w-full border border-gray-200 rounded-xl"
+            style="height: calc(100vh - 300px); min-height: 600px;"
+          />
+        </div>
       </div>
     </template>
 
