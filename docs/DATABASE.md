@@ -18,19 +18,32 @@ Prod: PostgreSQL 16 + asyncpg
 │ domain    │       │ batch_id   │───┐   │ old_status           │
 │ api_key   │       │ status     │   │   │ new_status           │
 │ webhook_url│      │ items(JSON)│   │   │ comment              │
-│ customs_fee│      │ ...        │   │   │ changed_by (FK)──────┤──┐
-└───────────┘       └────────────┘   │   │ created_at           │  │
-                                     │   └──────────────────────┘  │
-                    ┌────────────┐   │                              │
-                    │  batches   │◀──┘   ┌──────────────┐          │
-                    │            │       │  operators   │◀─────────┘
-                    │ id (PK)    │       │              │
-                    │ number     │       │ id (PK)      │
-                    │ status     │       │ name         │
-                    │ orders_cnt │       │ email        │
-                    │ total_wt   │       │ password_hash│
-                    └────────────┘       │ role         │
-                                         └──────────────┘
+│ customs_fee│      │ customs_   │──┐│   │ changed_by (FK)──────┤──┐
+└───────────┘       │ decl_id   │  ││   │ created_at           │  │
+                    └────────────┘  ││   └──────────────────────┘  │
+                                    ││                              │
+                    ┌────────────┐  ││   ┌──────────────┐          │
+                    │  batches   │◀─┘│   │  operators   │◀─────────┘
+                    │ id (PK)    │   │   │ id (PK)      │
+                    │ number     │   │   │ name         │
+                    │ status     │   │   │ email        │
+                    │ orders_cnt │   │   │ password_hash│
+                    │ total_wt   │   │   │ role         │
+                    └────────────┘   │   └──────────────┘
+                                     │
+           ┌─────────────────────┐   │   ┌──────────────────┐
+           │ customs_declarations│◀──┘   │ company_settings │
+           │                     │       │                  │
+           │ id (PK)             │       │ id (PK)          │
+           │ number (UNIQUE)     │       │ scope (UNIQUE)   │
+           │ status              │       │ company_name     │
+           │ orders_count        │       │ company_inn      │
+           │ items_count         │       │ customs_rep_name │
+           │ total_weight_grams  │       │ usd_rate_kopecks │
+           │ total_value_kopecks │       └──────────────────┘
+           │ sender_name         │
+           │ fts_reference       │
+           └─────────────────────┘
 ```
 
 ---
@@ -73,7 +86,14 @@ Prod: PostgreSQL 16 + asyncpg
 | delivery_cost_kopecks | INTEGER | NOT NULL | Стоимость доставки |
 | customs_fee_kopecks | INTEGER | NOT NULL | Стоимость таможни |
 | track_number | VARCHAR(30) | NULL | Трек-номер Почты России |
+| internal_track_number | VARCHAR(30) | NULL, INDEX | Внутренний трек OV-XXXXXX |
 | batch_id | UUID | FK batches.id, NULL | Партия |
+| shipment_group_id | UUID | FK shipment_groups.id, NULL | Группа отправки |
+| customs_declaration_id | UUID | FK customs_declarations.id, NULL | ПТД-ЭГ декларация |
+| public_tariff_kopecks | INTEGER | NULL | Публичный тариф |
+| contract_tariff_kopecks | INTEGER | NULL | Контрактный тариф |
+| tariff_savings_kopecks | INTEGER | NULL | Экономия |
+| tariff_savings_percent | FLOAT | NULL | % экономии |
 | created_at | TIMESTAMP TZ | NOT NULL | |
 | updated_at | TIMESTAMP TZ | NOT NULL | |
 
@@ -84,6 +104,7 @@ Prod: PostgreSQL 16 + asyncpg
 - `ix_orders_status` — фильтр по статусу
 - `ix_orders_batch_id` — заказы в партии
 - `ix_orders_created_at` — сортировка
+- `ix_orders_customs_declaration_id` — заказы в декларации
 
 **Формат items (JSON):**
 ```json
@@ -93,10 +114,15 @@ Prod: PostgreSQL 16 + asyncpg
     "sku": "KLX-7777-W",
     "quantity": 1,
     "price_kopecks": 499900,
-    "weight_grams": 12000
+    "weight_grams": 12000,
+    "tn_ved_code": "9403",
+    "country_of_origin": "CN",
+    "brand": "IKEA"
   }
 ]
 ```
+
+Поля `tn_ved_code`, `country_of_origin`, `brand` добавляются при заполнении таможенных данных через ПТД-ЭГ.
 
 ---
 
@@ -148,6 +174,59 @@ Prod: PostgreSQL 16 + asyncpg
 | is_active | BOOLEAN | NOT NULL, default true | |
 | created_at | TIMESTAMP TZ | NOT NULL | |
 | updated_at | TIMESTAMP TZ | NOT NULL | |
+
+---
+
+### customs_declarations — Таможенные декларации (ПТД-ЭГ)
+
+| Поле | Тип | Ограничения | Описание |
+|------|-----|-------------|----------|
+| id | UUID | PK | |
+| number | VARCHAR(30) | UNIQUE, NOT NULL | Номер (PTD-YYYYMMDD-HHMMSS) |
+| status | VARCHAR(30) | NOT NULL, default 'draft' | draft / ready / submitted / accepted / rejected |
+| orders_count | INTEGER | NOT NULL | Количество заказов |
+| items_count | INTEGER | NOT NULL | Количество товарных позиций |
+| total_weight_grams | INTEGER | NOT NULL | Общий вес |
+| total_value_kopecks | INTEGER | NOT NULL | Стоимость (руб) |
+| total_value_usd_cents | INTEGER | NOT NULL | Стоимость (USD) |
+| goods_location | VARCHAR(500) | NULL | Место нахождения товаров |
+| sender_name | VARCHAR(255) | NOT NULL | Снапшот: название компании |
+| sender_address | TEXT | NOT NULL | Снапшот: адрес компании |
+| sender_inn | VARCHAR(12) | NOT NULL | Снапшот: ИНН |
+| customs_rep_name | VARCHAR(255) | NULL | Таможенный представитель |
+| customs_rep_certificate | VARCHAR(100) | NULL | Свидетельство представителя |
+| operator_note | VARCHAR(500) | NULL | Примечание оператора |
+| fts_reference | VARCHAR(100) | NULL | Регистрационный номер ФТС |
+| submitted_at | TIMESTAMP TZ | NULL | Дата подачи |
+| accepted_at | TIMESTAMP TZ | NULL | Дата принятия |
+| created_at | TIMESTAMP TZ | NOT NULL | |
+| updated_at | TIMESTAMP TZ | NOT NULL | |
+
+**Статусы:** `draft` → `ready` → `submitted` → `accepted` / `rejected` (→ `draft`)
+
+---
+
+### company_settings — Настройки компании (синглтон)
+
+| Поле | Тип | Ограничения | Описание |
+|------|-----|-------------|----------|
+| id | UUID | PK | |
+| scope | VARCHAR(30) | UNIQUE, default 'global' | Всегда 'global' |
+| company_name | VARCHAR(255) | NOT NULL | Наименование компании |
+| company_address | TEXT | NOT NULL | Адрес |
+| company_inn | VARCHAR(12) | NOT NULL | ИНН |
+| company_kpp | VARCHAR(9) | NOT NULL | КПП |
+| company_postal_code | VARCHAR(6) | NOT NULL, default '238311' | Индекс |
+| company_phone | VARCHAR(20) | NOT NULL | Телефон |
+| customs_rep_name | VARCHAR(255) | NOT NULL | Таможенный представитель |
+| customs_rep_certificate | VARCHAR(100) | NOT NULL | Свидетельство |
+| customs_rep_inn | VARCHAR(12) | NOT NULL | ИНН представителя |
+| goods_location | VARCHAR(500) | NOT NULL | Место нахождения товаров по умолчанию |
+| usd_rate_kopecks | INTEGER | NOT NULL, default 9250 | Курс USD (копеек за 1 USD) |
+| created_at | TIMESTAMP TZ | NOT NULL | |
+| updated_at | TIMESTAMP TZ | NOT NULL | |
+
+Автоматически создаётся при первом обращении через `get_company_settings()`.
 
 ---
 

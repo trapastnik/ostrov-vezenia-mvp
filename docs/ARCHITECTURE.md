@@ -66,16 +66,20 @@ app/
 │   └── dependencies.py         # get_db, get_current_operator, get_shop_by_api_key
 ├── models/                     # SQLAlchemy ORM модели
 │   ├── shop.py                 # Магазин (api_key, domain, customs_fee)
-│   ├── order.py                # Заказ (items JSONB, status, recipient_*)
+│   ├── order.py                # Заказ (items JSONB, status, recipient_*, customs_declaration_id FK)
 │   ├── order_status_history.py # История смен статуса
 │   ├── batch.py                # Партия заказов
-│   └── operator.py             # Оператор админки (admin/operator роли)
+│   ├── operator.py             # Оператор админки (admin/operator роли)
+│   ├── customs_declaration.py  # ПТД-ЭГ: декларация (number, status, totals, sender snapshot)
+│   └── company_settings.py     # Настройки компании-отправителя (синглтон)
 ├── schemas/                    # Pydantic request/response модели
 │   ├── order.py                # OrderCreate, OrderResponse, OrderDetailResponse, etc.
 │   ├── delivery.py             # DeliveryCalcRequest/Response
 │   ├── shop.py                 # ShopCreate, ShopResponse
 │   ├── auth.py                 # LoginRequest, TokenResponse
-│   └── batch.py                # BatchCreate, BatchResponse
+│   ├── batch.py                # BatchCreate, BatchResponse
+│   ├── customs_declaration.py  # CustomsDeclarationCreate/Response/Detail, OrderItemCustomsUpdate
+│   └── company_settings.py     # CompanySettingsResponse/Update
 ├── api/v1/
 │   ├── router.py               # Агрегирует все роутеры
 │   ├── delivery.py             # POST /delivery/calculate
@@ -86,6 +90,8 @@ app/
 │   ├── admin_batches.py        # Создание и список партий
 │   ├── admin_shops.py          # CRUD магазинов
 │   ├── admin_groups.py         # Группы отправок + настройки оптимизатора
+│   ├── admin_customs.py        # ПТД-ЭГ: CRUD деклараций, валидация, экспорт CSV/PDF, обновление таможенных полей товаров
+│   ├── admin_company.py        # Настройки компании-отправителя (GET/PATCH)
 │   ├── admin_pochta.py         # Тест-интерфейс к API Почты России (тарифы, адреса, ФИО, телефон)
 │   └── admin_health.py         # GET /health, GET /health/server, POST /health/run-tests
 ├── core/
@@ -100,6 +106,8 @@ app/
 │   ├── order.py                # Бизнес-логика заказов, валидация переходов
 │   ├── grouping_optimizer.py   # Математика оптимизации группировки (score = savings − penalty × wait_hours)
 │   ├── hub_router.py           # Маршрутизация по хабам (10 хабов по первым 3 цифрам индекса)
+│   ├── customs_declaration.py  # Бизнес-логика ПТД-ЭГ: создание, статусы, валидация, обновление таможенных полей
+│   ├── customs_export.py       # Экспорт ПТД-ЭГ в CSV и PDF (reportlab + DejaVuSans для кириллицы)
 │   └── webhook.py              # Отправка уведомлений магазину
 ├── workers/
 │   ├── celery_app.py           # Celery конфигурация + Beat расписание
@@ -124,6 +132,7 @@ admin/src/
 │   ├── shops.ts                # fetchShops, fetchShop, createShop, updateShop
 │   ├── batches.ts              # fetchBatches, createBatch
 │   ├── groups.ts               # fetchGroups, updateGroupStatus, fetchSettings, updateSettings
+│   ├── customs.ts              # fetchDeclarations, createDeclaration, fetchDeclaration, changeStatus, validate, export CSV/PDF, updateOrderItemsCustoms
 │   ├── pochta.ts               # testTariff, testAddress, testFio, testPhone (с pochta_log)
 │   └── health.ts               # fetchHealth, runSystemTests, fetchServerMetrics
 ├── pages/
@@ -135,13 +144,16 @@ admin/src/
 │   ├── ShopsListPage.vue
 │   ├── ShopDetailPage.vue
 │   ├── GroupsPage.vue          # Группы отправок + настройки оптимизатора
+│   ├── CustomsDeclarationsPage.vue  # Список ПТД-ЭГ + создание декларации из заказов
+│   ├── CustomsDeclarationDetailPage.vue # Детальная декларация: заказы, товары, валидация, экспорт
 │   ├── PochtaTestPage.vue      # Тест-интерфейс API Почты (тарифы, адреса, ФИО, телефон)
 │   └── SystemHealthPage.vue    # Здоровье системы: сервисы, метрики сервера, системные тесты
 ├── components/
-│   ├── Sidebar.vue             # Навигация + версия приложения (v0.2.0)
+│   ├── Sidebar.vue             # Навигация + версия приложения (v0.2.1)
 │   ├── ApiDebugPanel.vue       # Дебаг-панель HTTP-логов (браузер↔backend, backend↔Почта)
 │   ├── OrderStatusBadge.vue    # Цветные бейджи статусов
 │   ├── ChangeStatusModal.vue   # Модалка смены статуса с валидацией
+│   ├── CustomsItemEditor.vue   # Модалка редактирования таможенных полей товаров (ТН ВЭД, страна, бренд)
 │   └── Pagination.vue
 ├── layouts/
 │   └── DefaultLayout.vue       # Sidebar + content area
@@ -227,6 +239,28 @@ Headers: X-Signature: HMAC-SHA256(body, api_key)
            → POST /admin/batches { order_ids }
            → Batch(status: forming, orders_count, total_weight)
            → orders.batch_id = batch.id, orders.status = batch_forming
+```
+
+### 5. Таможенное оформление (ПТД-ЭГ)
+```
+Оператор → Таможня (ПТД) → Создать декларацию → Выбрать заказы
+           → POST /admin/customs/declarations { order_ids }
+           → Снимается снапшот отправителя из company_settings
+           → Декларация(status: draft, number: PTD-YYYYMMDD-HHMMSS)
+           → orders.customs_declaration_id = declaration.id
+
+Оператор → Заполнить ТН ВЭД + страну происхождения для товаров
+           → PATCH /admin/customs/orders/{id}/items { updates }
+           → deepcopy + flag_modified → JSON field saved
+
+Оператор → Проверить готовность → POST .../validate
+           → Все товары имеют tn_ved_code + country_of_origin?
+
+Оператор → Экспорт → GET .../export/csv или .../export/pdf
+           → CSV: BOM + `;` разделитель для Excel/таможенного ПО
+           → PDF: reportlab + DejaVuSans (кириллица), таблица товаров
+
+Статусы: draft → ready → submitted → accepted / rejected
 ```
 
 ---

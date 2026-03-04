@@ -246,7 +246,7 @@ docker compose exec backend alembic upgrade head
 
 | Эндпоинт | Описание |
 |----------|----------|
-| `GET /health` | Публичный: `{"status":"ok","version":"0.2.0"}` |
+| `GET /health` | Публичный: `{"status":"ok","version":"0.2.1"}` |
 | `GET /api/v1/admin/health` | Статус сервисов (DB, Redis, Почта) + статистика БД |
 | `GET /api/v1/admin/health/server` | RAM, CPU load avg (1/5/15м), диск, PID + RSS нашего процесса |
 | `POST /api/v1/admin/health/run-tests` | 5 системных тестов: БД, Redis, Почта public, Почта contract, JWT |

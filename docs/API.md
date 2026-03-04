@@ -407,7 +407,7 @@ Query: `page`, `per_page`
 Ответ (200):
 ```json
 {
-  "version": "0.2.0",
+  "version": "0.2.1",
   "uptime_seconds": 3600,
   "services": [
     {"name": "PostgreSQL / SQLite", "status": "ok", "latency_ms": 3},
@@ -448,6 +448,178 @@ Query: `page`, `per_page`
     {"name": "JWT авторизация", "status": "pass", "detail": "Оператор: Администратор (admin)", "duration_ms": 0}
   ],
   "passed": 5, "failed": 0, "total": 5
+}
+```
+
+---
+
+## Таможенные декларации (ПТД-ЭГ)
+
+### GET /admin/customs/declarations — Список деклараций
+
+Query: `page`, `per_page`, `status`
+
+Ответ (200):
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "number": "PTD-20260304-151234",
+      "status": "draft",
+      "orders_count": 5,
+      "items_count": 12,
+      "total_weight_grams": 15000,
+      "total_value_kopecks": 750000,
+      "total_value_usd_cents": 8108,
+      "sender_name": "ООО Остров Везения",
+      "sender_address": "...",
+      "sender_inn": "3900000000",
+      "customs_rep_name": null,
+      "customs_rep_certificate": null,
+      "goods_location": "Калининград, ул. ...",
+      "fts_reference": null,
+      "created_at": "...",
+      "updated_at": "..."
+    }
+  ],
+  "total": 1, "page": 1, "per_page": 20, "pages": 1
+}
+```
+
+---
+
+### POST /admin/customs/declarations — Создание декларации
+
+Запрос:
+```json
+{
+  "order_ids": ["uuid1", "uuid2", "uuid3"],
+  "goods_location": "Калининград, ул. ...",
+  "operator_note": "Примечание"
+}
+```
+
+| Поле | Тип | Обязательно | Описание |
+|------|-----|-------------|----------|
+| order_ids | UUID[] | ✅ | Заказы для включения (макс. 500) |
+| goods_location | string | ❌ | Переопределяет значение из company_settings |
+| operator_note | string | ❌ | Примечание |
+
+Ответ (201): `CustomsDeclarationResponse`
+
+Ошибки:
+- `400` — заказ уже в другой декларации / не найден / > 500 заказов
+
+---
+
+### GET /admin/customs/declarations/{id} — Детальная декларация
+
+Ответ включает `orders[]` с `items[]` и флагом `customs_ready`:
+
+```json
+{
+  "...все поля CustomsDeclarationResponse...",
+  "orders": [
+    {
+      "id": "uuid",
+      "external_order_id": "SHOP-123",
+      "recipient_name": "Иванов",
+      "recipient_address": "...",
+      "recipient_postal_code": "101000",
+      "items": [
+        {"name": "Товар", "tn_ved_code": "6403", "country_of_origin": "CN", "brand": "Nike", "quantity": 1, "price_kopecks": 150000, "weight_grams": 800}
+      ],
+      "total_amount_kopecks": 150000,
+      "total_weight_grams": 800,
+      "customs_ready": true
+    }
+  ]
+}
+```
+
+---
+
+### PATCH /admin/customs/declarations/{id}/status — Смена статуса
+
+Запрос:
+```json
+{
+  "status": "ready",
+  "fts_reference": "10002000/040325/0012345"
+}
+```
+
+Допустимые переходы: `draft→ready`, `ready→draft|submitted`, `submitted→accepted|rejected`, `rejected→draft`
+
+---
+
+### POST /admin/customs/declarations/{id}/validate — Проверка готовности
+
+Ответ:
+```json
+{
+  "valid": false,
+  "errors": ["Заказ SHOP-123, товар 1 «Кроссовки»: нет кода ТН ВЭД"]
+}
+```
+
+---
+
+### DELETE /admin/customs/declarations/{id} — Удаление черновика
+
+Только для `status=draft`. Снимает привязку заказов.
+
+---
+
+### GET /admin/customs/declarations/{id}/export/csv — Экспорт CSV
+
+Возвращает CSV-файл (UTF-8 с BOM, разделитель `;`) для таможенного ПО.
+
+### GET /admin/customs/declarations/{id}/export/pdf — Экспорт PDF
+
+Возвращает PDF с формой ПТД-ЭГ (шрифт DejaVuSans для кириллицы).
+
+---
+
+### PATCH /admin/customs/orders/{order_id}/items — Обновление таможенных полей товаров
+
+Запрос:
+```json
+{
+  "updates": [
+    {"item_index": 0, "tn_ved_code": "6403", "country_of_origin": "CN", "brand": "Nike"},
+    {"item_index": 1, "tn_ved_code": "6404", "country_of_origin": "TR"}
+  ]
+}
+```
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| item_index | int ≥ 0 | Индекс товара в массиве items |
+| tn_ved_code | string (≤10) | Код ТН ВЭД (допускается пустой) |
+| country_of_origin | string (≤2) | ISO alpha-2 код страны (допускается пустой) |
+| brand | string \| null | Торговая марка |
+
+---
+
+### GET/PATCH /admin/company/settings — Настройки компании
+
+GET возвращает текущие настройки, PATCH обновляет:
+
+```json
+{
+  "company_name": "ООО Остров Везения",
+  "company_address": "...",
+  "company_inn": "3900000000",
+  "company_kpp": "390001001",
+  "company_postal_code": "238311",
+  "company_phone": "+7...",
+  "customs_rep_name": "...",
+  "customs_rep_certificate": "...",
+  "customs_rep_inn": "...",
+  "goods_location": "...",
+  "usd_rate_kopecks": 9250
 }
 ```
 
