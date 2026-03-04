@@ -1,17 +1,44 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchOrder, changeOrderStatus } from '../api/orders'
+import { updateOrderItemsCustoms } from '../api/customs'
 import OrderStatusBadge from '../components/OrderStatusBadge.vue'
 import ChangeStatusModal from '../components/ChangeStatusModal.vue'
-import { ALLOWED_TRANSITIONS } from '../types'
-import type { OrderDetail } from '../types'
+import CustomsItemEditor from '../components/CustomsItemEditor.vue'
+import { ALLOWED_TRANSITIONS, DECLARATION_STATUS_LABELS, DECLARATION_STATUS_COLORS } from '../types'
+import type { OrderDetail, CustomsDeclarationOrder } from '../types'
 
 const route = useRoute()
 const order = ref<OrderDetail | null>(null)
 const loading = ref(true)
 const showModal = ref(false)
 const error = ref('')
+const actionMsg = ref('')
+const actionError = ref('')
+
+// Customs editor
+const showCustomsEditor = ref(false)
+
+const editorOrder = computed<CustomsDeclarationOrder | null>(() => {
+  if (!order.value) return null
+  return {
+    id: order.value.id,
+    external_order_id: order.value.external_order_id,
+    recipient_name: order.value.recipient_name,
+    recipient_address: order.value.recipient_address,
+    recipient_postal_code: order.value.recipient_postal_code,
+    items: order.value.items,
+    total_amount_kopecks: order.value.total_amount_kopecks,
+    total_weight_grams: order.value.total_weight_grams,
+    customs_ready: order.value.items.every(item => !!item.tn_ved_code && !!item.country_of_origin),
+  }
+})
+
+const hasCustomsData = computed(() => {
+  if (!order.value) return false
+  return order.value.items.some(item => item.tn_ved_code || item.country_of_origin || item.brand)
+})
 
 async function load() {
   loading.value = true
@@ -31,6 +58,20 @@ async function handleStatusChange(newStatus: string, comment: string) {
     await load()
   } catch (e: any) {
     error.value = e.response?.data?.detail || 'Ошибка смены статуса'
+  }
+}
+
+async function handleSaveCustomsItems(orderId: string, updates: { item_index: number; tn_ved_code: string; country_of_origin: string; brand?: string }[]) {
+  actionMsg.value = ''
+  actionError.value = ''
+  try {
+    await updateOrderItemsCustoms(orderId, updates)
+    showCustomsEditor.value = false
+    await load()
+    actionMsg.value = 'Таможенные данные сохранены'
+    setTimeout(() => actionMsg.value = '', 3000)
+  } catch (e: any) {
+    actionError.value = e.response?.data?.detail || 'Ошибка сохранения таможенных данных'
   }
 }
 
@@ -75,11 +116,23 @@ onMounted(load)
         </button>
       </div>
 
+      <!-- Messages -->
+      <div v-if="actionMsg" class="mb-4 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm">{{ actionMsg }}</div>
+      <div v-if="actionError" class="mb-4 px-4 py-2 bg-red-50 text-red-700 rounded-lg text-sm">{{ actionError }}</div>
+
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <!-- Товары в заказе -->
         <div class="bg-white rounded-xl border border-gray-200 p-5 lg:col-span-2">
-          <h3 class="font-semibold text-gray-800 mb-4">Товары в заказе</h3>
+          <div class="flex items-center gap-3 mb-4">
+            <h3 class="font-semibold text-gray-800">Товары в заказе</h3>
+            <button
+              @click="showCustomsEditor = true"
+              class="ml-auto text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
+            >
+              Редактировать таможенные данные
+            </button>
+          </div>
           <table class="w-full text-sm">
             <thead>
               <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-100">
@@ -89,6 +142,9 @@ onMounted(load)
                 <th class="pb-2 font-medium text-center">Кол-во</th>
                 <th class="pb-2 font-medium text-right">Вес</th>
                 <th class="pb-2 font-medium text-right">Сумма</th>
+                <th class="pb-2 font-medium">ТН ВЭД</th>
+                <th class="pb-2 font-medium">Страна</th>
+                <th class="pb-2 font-medium">Бренд</th>
               </tr>
             </thead>
             <tbody>
@@ -99,6 +155,13 @@ onMounted(load)
                 <td class="py-2 text-gray-600 text-center">{{ item.quantity }}</td>
                 <td class="py-2 text-gray-600 text-right">{{ formatWeight(item.weight_grams) }}</td>
                 <td class="py-2 text-gray-800 font-semibold text-right">{{ formatPrice(item.price_kopecks * item.quantity) }}</td>
+                <td class="py-2 font-mono text-xs" :class="item.tn_ved_code ? 'text-gray-800' : 'text-gray-300'">
+                  {{ item.tn_ved_code || '—' }}
+                </td>
+                <td class="py-2 font-mono text-xs" :class="item.country_of_origin ? 'text-gray-800' : 'text-gray-300'">
+                  {{ item.country_of_origin || '—' }}
+                </td>
+                <td class="py-2 text-gray-600 text-xs">{{ item.brand || '—' }}</td>
               </tr>
             </tbody>
             <tfoot>
@@ -109,6 +172,7 @@ onMounted(load)
                 <td class="pt-3 text-center text-gray-600">{{ order.items.reduce((s: number, i: any) => s + i.quantity, 0) }} шт</td>
                 <td class="pt-3 text-right text-gray-600">{{ formatWeight(order.total_weight_grams) }}</td>
                 <td class="pt-3 text-right font-bold text-gray-900">{{ formatPrice(order.total_amount_kopecks) }}</td>
+                <td colspan="3"></td>
               </tr>
             </tfoot>
           </table>
@@ -154,6 +218,34 @@ onMounted(load)
           </div>
         </div>
 
+        <!-- Таможенная декларация -->
+        <div class="bg-white rounded-xl border border-gray-200 p-5" :class="order.customs_declaration_id ? '' : 'lg:col-span-2'">
+          <h3 class="font-semibold text-gray-800 mb-4">Таможенная декларация</h3>
+          <template v-if="order.customs_declaration_number">
+            <div class="flex items-center gap-3 mb-3">
+              <router-link
+                :to="`/customs/${order.customs_declaration_id}`"
+                class="text-blue-600 hover:text-blue-800 font-medium text-sm"
+              >
+                {{ order.customs_declaration_number }}
+              </router-link>
+              <span
+                :class="DECLARATION_STATUS_COLORS[order.customs_declaration_status || ''] || 'bg-gray-100 text-gray-600'"
+                class="px-2 py-0.5 rounded-full text-xs font-medium"
+              >
+                {{ DECLARATION_STATUS_LABELS[order.customs_declaration_status || ''] || order.customs_declaration_status }}
+              </span>
+            </div>
+            <div class="text-sm text-gray-500">
+              <span v-if="hasCustomsData" class="text-green-600">Таможенные данные заполнены</span>
+              <span v-else class="text-yellow-600">Требуется заполнение таможенных данных</span>
+            </div>
+          </template>
+          <template v-else>
+            <p class="text-sm text-gray-400">Заказ не включён в декларацию</p>
+          </template>
+        </div>
+
         <!-- Тарифы: публичный vs наш -->
         <div v-if="order.public_tariff_kopecks" class="bg-white rounded-xl border border-gray-200 p-5">
           <h3 class="font-semibold text-gray-800 mb-4">Тариф доставки</h3>
@@ -197,6 +289,14 @@ onMounted(load)
         :current-status="order.status"
         @confirm="handleStatusChange"
         @cancel="showModal = false"
+      />
+
+      <!-- Customs item editor modal -->
+      <CustomsItemEditor
+        v-if="showCustomsEditor && editorOrder"
+        :order="editorOrder"
+        @save="handleSaveCustomsItems"
+        @close="showCustomsEditor = false"
       />
     </template>
   </div>
