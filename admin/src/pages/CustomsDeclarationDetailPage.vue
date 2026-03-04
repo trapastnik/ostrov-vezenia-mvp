@@ -102,7 +102,7 @@ async function handleExportPdf() {
   try {
     await downloadDeclarationPdf(route.params.id as string)
   } catch {
-    actionError.value = 'Ошибка скачивания PDF'
+    actionError.value = 'Ошибка открытия PDF'
   }
 }
 
