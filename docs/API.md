@@ -113,6 +113,8 @@ Rate limit на `/auth/login`: 10 запросов в минуту (по IP).
 | recipient.email | string | ❌ | Email |
 | recipient.address | string(5+) | ✅ | Полный адрес |
 | recipient.postal_code | string(5-6) | ✅ | Индекс |
+| recipient.passport_series | string(4) | ✅ | Серия паспорта (4 цифры) |
+| recipient.passport_number | string(6) | ✅ | Номер паспорта (6 цифр) |
 | items[].name | string | ✅ | Название товара |
 | items[].sku | string | ❌ | Артикул (SKU) магазина |
 | items[].quantity | int > 0 | ✅ | Количество |
@@ -650,4 +652,65 @@ X-Signature: <HMAC-SHA256(body, api_key)>
 import hmac, hashlib
 expected = hmac.new(api_key.encode(), body, hashlib.sha256).hexdigest()
 assert expected == request.headers["X-Signature"]
+```
+
+---
+
+## Справочник ТН ВЭД
+
+### GET /admin/tnved/search — Поиск кодов ТН ВЭД
+
+Query-параметры:
+
+| Параметр | Тип | По умолчанию | Описание |
+|----------|-----|-------------|----------|
+| q | string | — | Поисковый запрос (по коду или наименованию) |
+| limit | int | 20 | Максимальное количество результатов |
+
+Ответ (200):
+```json
+[
+  {"code": "6403990000", "name": "Обувь на подошве из резины/пластмассы, прочая", "level": 10, "parent_code": "6403990000", "unit": "пар"},
+  {"code": "6404110000", "name": "Спортивная обувь с подошвой из резины", "level": 10, "parent_code": "6404110000", "unit": "пар"}
+]
+```
+
+---
+
+### GET /admin/tnved/{code} — Детали кода ТН ВЭД
+
+Возвращает код с полной иерархией (родительские коды).
+
+Ответ (200):
+```json
+{
+  "code": "6403990000",
+  "name": "Обувь на подошве из резины/пластмассы, прочая",
+  "level": 10,
+  "parent_code": "640399",
+  "unit": "пар",
+  "note": null,
+  "hierarchy": [
+    {"code": "64", "name": "Обувь, гетры и аналогичные изделия", "level": 2},
+    {"code": "6403", "name": "Обувь на подошве из резины, пластмассы, кожи", "level": 4},
+    {"code": "640399", "name": "Прочая", "level": 6}
+  ]
+}
+```
+
+---
+
+## Обновление курсов валют
+
+### POST /admin/company/settings/update-rates — Обновить курсы из ЦБ РФ
+
+Загружает актуальные курсы EUR и USD из API ЦБ РФ (`cbr-xml-daily.ru`) и сохраняет в `company_settings`.
+
+Ответ (200):
+```json
+{
+  "usd_rate_kopecks": 9250,
+  "eur_rate_kopecks": 10500,
+  "rates_updated_at": "2026-03-05T12:00:00Z"
+}
 ```

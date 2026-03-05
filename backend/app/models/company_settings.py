@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 
-from sqlalchemy import Integer, String, Text
+from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin, generate_uuid
@@ -30,5 +31,7 @@ class CompanySettings(Base, TimestampMixin):
     # Место нахождения товаров по умолчанию
     goods_location: Mapped[str] = mapped_column(String(500), default="", nullable=False)
 
-    # Курс USD для пересчёта стоимости (копеек за 1 USD)
+    # Курсы валют (копеек за 1 единицу валюты, обновляются из ЦБ РФ)
     usd_rate_kopecks: Mapped[int] = mapped_column(Integer, default=9250, nullable=False)
+    eur_rate_kopecks: Mapped[int] = mapped_column(Integer, default=10500, nullable=False)
+    rates_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

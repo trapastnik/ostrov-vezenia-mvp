@@ -15,6 +15,8 @@ class OrderMapper
         $recipientEmail = (string)($order->getField('USER_EMAIL') ?? '');
         $recipientAddress = (string)($propertyCollection->getAddress()?->getValue() ?? '');
         $postalCode = (string)(self::findProperty($propertyCollection, ['ZIP', 'POSTAL_CODE', 'INDEX']) ?? '');
+        $passportSeries = (string)(self::findProperty($propertyCollection, ['PASSPORT_SERIES', 'PASPORT_SER']) ?? '');
+        $passportNumber = (string)(self::findProperty($propertyCollection, ['PASSPORT_NUMBER', 'PASPORT_NUM']) ?? '');
 
         $items = [];
         $totalAmountKopecks = 0;
@@ -50,6 +52,8 @@ class OrderMapper
                 'email' => $recipientEmail ?: null,
                 'address' => $recipientAddress,
                 'postal_code' => $postalCode,
+                'passport_series' => $passportSeries,
+                'passport_number' => $passportNumber,
             ],
             'items' => $items,
             '_meta' => [

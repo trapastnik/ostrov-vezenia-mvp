@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchDeclarations, createDeclaration } from '../api/customs'
 import { fetchOrders } from '../api/orders'
-import { fetchCompanySettings, updateCompanySettings } from '../api/company'
+import { fetchCompanySettings, updateCompanySettings, updateRatesFromCBR } from '../api/company'
 import Pagination from '../components/Pagination.vue'
 import OrderStatusBadge from '../components/OrderStatusBadge.vue'
 import type { CustomsDeclaration, CompanySettings, Order } from '../types'
@@ -143,7 +143,7 @@ async function saveSettings() {
   settingsSaving.value = true
   settingsMsg.value = ''
   try {
-    const { id, ...rest } = settings.value
+    const { id, rates_updated_at, ...rest } = settings.value
     settings.value = await updateCompanySettings(rest)
     settingsMsg.value = 'Сохранено'
     setTimeout(() => settingsMsg.value = '', 3000)
@@ -151,6 +151,22 @@ async function saveSettings() {
     settingsMsg.value = 'Ошибка сохранения'
   } finally {
     settingsSaving.value = false
+  }
+}
+
+const ratesUpdating = ref(false)
+
+async function handleUpdateRates() {
+  ratesUpdating.value = true
+  settingsMsg.value = ''
+  try {
+    settings.value = await updateRatesFromCBR()
+    settingsMsg.value = 'Курсы обновлены из ЦБ РФ'
+    setTimeout(() => settingsMsg.value = '', 5000)
+  } catch (e: any) {
+    settingsMsg.value = e.response?.data?.detail || 'Ошибка обновления курсов'
+  } finally {
+    ratesUpdating.value = false
   }
 }
 
@@ -164,10 +180,6 @@ function formatDate(d: string | null): string {
 
 function formatRub(kopecks: number): string {
   return (kopecks / 100).toLocaleString('ru-RU', { minimumFractionDigits: 2 })
-}
-
-function formatUsd(cents: number): string {
-  return (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, style: 'currency', currency: 'USD' })
 }
 
 onMounted(() => {
@@ -229,7 +241,7 @@ onMounted(() => {
               <th class="px-5 py-3">Товаров</th>
               <th class="px-5 py-3">Вес</th>
               <th class="px-5 py-3">Стоимость</th>
-              <th class="px-5 py-3">USD</th>
+              <th class="px-5 py-3">EUR</th>
               <th class="px-5 py-3">Создана</th>
             </tr>
           </thead>
@@ -250,7 +262,7 @@ onMounted(() => {
               <td class="px-5 py-3 text-sm text-gray-700">{{ d.items_count }}</td>
               <td class="px-5 py-3 text-sm text-gray-700">{{ (d.total_weight_grams / 1000).toFixed(1) }} кг</td>
               <td class="px-5 py-3 text-sm text-gray-700">{{ formatRub(d.total_value_kopecks) }} &#8381;</td>
-              <td class="px-5 py-3 text-sm text-gray-700">{{ formatUsd(d.total_value_usd_cents) }}</td>
+              <td class="px-5 py-3 text-sm text-gray-700">{{ (d.total_value_eur_cents / 100).toFixed(2) }} EUR</td>
               <td class="px-5 py-3 text-sm text-gray-500">{{ formatDate(d.created_at) }}</td>
             </tr>
             <tr v-if="declarations.length === 0">
@@ -320,10 +332,38 @@ onMounted(() => {
             <label class="block text-xs text-gray-500 mb-1">Место нахождения товаров (по умолчанию)</label>
             <input v-model="settings.goods_location" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
           </div>
+        </div>
+
+        <h3 class="text-lg font-semibold text-gray-800 mt-6 mb-4">Курсы валют (ЦБ РФ)</h3>
+
+        <div class="grid grid-cols-3 gap-4">
           <div>
-            <label class="block text-xs text-gray-500 mb-1">Курс USD (копеек за 1$)</label>
-            <input v-model.number="settings.usd_rate_kopecks" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            <label class="block text-xs text-gray-500 mb-1">Курс EUR (коп. за 1 EUR)</label>
+            <input v-model.number="settings.eur_rate_kopecks" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            <div class="text-xs text-gray-400 mt-0.5">= {{ (settings.eur_rate_kopecks / 100).toFixed(2) }} руб.</div>
           </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Курс USD (коп. за 1 USD)</label>
+            <input v-model.number="settings.usd_rate_kopecks" type="number" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            <div class="text-xs text-gray-400 mt-0.5">= {{ (settings.usd_rate_kopecks / 100).toFixed(2) }} руб.</div>
+          </div>
+          <div class="flex flex-col justify-end">
+            <button
+              @click="handleUpdateRates"
+              :disabled="ratesUpdating"
+              class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50 cursor-pointer"
+            >
+              {{ ratesUpdating ? 'Обновление...' : 'Обновить из ЦБ РФ' }}
+            </button>
+            <div v-if="settings.rates_updated_at" class="text-xs text-gray-400 mt-1">
+              Обновлено: {{ formatDate(settings.rates_updated_at) }}
+            </div>
+            <div v-else class="text-xs text-gray-400 mt-1">Курсы ещё не обновлялись</div>
+          </div>
+        </div>
+
+        <div class="mt-3 px-3 py-2 bg-amber-50 rounded-lg text-xs text-amber-700">
+          Лимит эксперимента: 200 EUR = {{ formatRub(settings.eur_rate_kopecks * 200) }} руб. за посылку
         </div>
 
         <div class="flex items-center gap-3 pt-4">

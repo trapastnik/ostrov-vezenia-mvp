@@ -50,6 +50,8 @@ async def generate_csv(db: AsyncSession, declaration_id: uuid.UUID) -> io.String
         "5. Адрес получателя",
         "5. Индекс получателя",
         "5. Телефон получателя",
+        "5. Паспорт серия",
+        "5. Паспорт номер",
         # Колонки 6–13: Сведения о товарах
         "6. N п/п товара",
         "7. Наименование товара",
@@ -101,6 +103,8 @@ async def generate_csv(db: AsyncSession, declaration_id: uuid.UUID) -> io.String
                 order.recipient_address,
                 order.recipient_postal_code,
                 order.recipient_phone,
+                order.recipient_passport_series or "",
+                order.recipient_passport_number or "",
                 f"{item_global_seq}/{item_in_waybill}",
                 item["name"],
                 item.get("tn_ved_code", ""),
@@ -120,7 +124,7 @@ async def generate_csv(db: AsyncSession, declaration_id: uuid.UUID) -> io.String
     total_value_usd = round(declaration.total_value_usd_cents / 100, 2)
 
     writer.writerow([
-        "", "", "", "", "", "", "", "", "", "", "", "",
+        "", "", "", "", "", "", "", "", "", "", "", "", "", "",
         "ИТОГО", "", "", "", "", "",
         total_weight_kg,
         total_weight_kg,
@@ -284,7 +288,13 @@ async def generate_pdf(db: AsyncSession, declaration_id: uuid.UUID) -> io.BytesI
                 Paragraph(str(waybill_seq), small),
                 Paragraph(declaration.number, small),
                 Paragraph(order.external_order_id, small),
-                Paragraph(f"{order.recipient_name}<br/>{order.recipient_postal_code}", small),
+                Paragraph(
+                    f"{order.recipient_name}<br/>"
+                    f"{order.recipient_postal_code}<br/>"
+                    f"П: {order.recipient_passport_series or '?'} "
+                    f"{order.recipient_passport_number or '?'}",
+                    small,
+                ),
                 Paragraph(f"{item_global_seq}/{item_in_waybill}", small),
                 Paragraph(name_str, small),
                 Paragraph(item.get("tn_ved_code", "—"), small),
@@ -327,9 +337,10 @@ async def generate_pdf(db: AsyncSession, declaration_id: uuid.UUID) -> io.BytesI
 
     elements.append(Spacer(1, 4 * mm))
 
-    # ===== USD эквивалент (справочно) =====
+    # ===== Эквиваленты валют (справочно) =====
+    total_value_eur = round(declaration.total_value_eur_cents / 100, 2) if declaration.total_value_eur_cents else 0
     elements.append(Paragraph(
-        f"<b>Стоимость в USD (справочно):</b> {total_value_usd:.2f} USD",
+        f"<b>Справочно:</b> {total_value_eur:.2f} EUR &nbsp;&nbsp;/&nbsp;&nbsp; {total_value_usd:.2f} USD",
         normal,
     ))
 

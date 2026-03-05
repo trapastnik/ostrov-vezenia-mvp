@@ -85,6 +85,8 @@ Prod: PostgreSQL 16 + asyncpg
 | total_weight_grams | INTEGER | NOT NULL | Общий вес |
 | delivery_cost_kopecks | INTEGER | NOT NULL | Стоимость доставки |
 | customs_fee_kopecks | INTEGER | NOT NULL | Стоимость таможни |
+| recipient_passport_series | VARCHAR(4) | NULL | Серия паспорта получателя |
+| recipient_passport_number | VARCHAR(6) | NULL | Номер паспорта получателя |
 | track_number | VARCHAR(30) | NULL | Трек-номер Почты России |
 | internal_track_number | VARCHAR(30) | NULL, INDEX | Внутренний трек OV-XXXXXX |
 | batch_id | UUID | FK batches.id, NULL | Партия |
@@ -189,6 +191,7 @@ Prod: PostgreSQL 16 + asyncpg
 | total_weight_grams | INTEGER | NOT NULL | Общий вес |
 | total_value_kopecks | INTEGER | NOT NULL | Стоимость (руб) |
 | total_value_usd_cents | INTEGER | NOT NULL | Стоимость (USD) |
+| total_value_eur_cents | INTEGER | NOT NULL, default 0 | Стоимость в евроцентах |
 | goods_location | VARCHAR(500) | NULL | Место нахождения товаров |
 | sender_name | VARCHAR(255) | NOT NULL | Снапшот: название компании |
 | sender_address | TEXT | NOT NULL | Снапшот: адрес компании |
@@ -223,10 +226,25 @@ Prod: PostgreSQL 16 + asyncpg
 | customs_rep_inn | VARCHAR(12) | NOT NULL | ИНН представителя |
 | goods_location | VARCHAR(500) | NOT NULL | Место нахождения товаров по умолчанию |
 | usd_rate_kopecks | INTEGER | NOT NULL, default 9250 | Курс USD (копеек за 1 USD) |
+| eur_rate_kopecks | INTEGER | NOT NULL, default 10500 | Курс EUR (копейки за 1 EUR) |
+| rates_updated_at | TIMESTAMP TZ | NULL | Дата обновления курсов из ЦБ РФ |
 | created_at | TIMESTAMP TZ | NOT NULL | |
 | updated_at | TIMESTAMP TZ | NOT NULL | |
 
 Автоматически создаётся при первом обращении через `get_company_settings()`.
+
+---
+
+### tn_ved_codes — Справочник ТН ВЭД ЕАЭС
+
+| Поле | Тип | Ограничения | Описание |
+|------|-----|-------------|----------|
+| code | VARCHAR(10) | PK | Код ТН ВЭД (10-значный) |
+| name | TEXT | NOT NULL | Наименование |
+| level | INTEGER | NOT NULL | Уровень (2/4/6/8/10) |
+| parent_code | VARCHAR(10) | NULL | Родительский код |
+| unit | VARCHAR(50) | NULL | Единица измерения |
+| note | TEXT | NULL | Примечание |
 
 ---
 

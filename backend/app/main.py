@@ -20,7 +20,10 @@ from app.api.v1.router import api_v1_router
 from app.core.config import settings
 from app.services.pochta import PochtaClient
 
-APP_VERSION = pkg_version("ostrov-backend")
+try:
+    APP_VERSION = pkg_version("ostrov-backend")
+except Exception:
+    APP_VERSION = "dev"
 
 
 @asynccontextmanager

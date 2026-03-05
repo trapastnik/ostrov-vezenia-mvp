@@ -21,6 +21,26 @@ DECLARATION_ALLOWED_TRANSITIONS = {
     "rejected": ["draft"],
 }
 
+# Запрещённые / подакцизные товары (по префиксам ТН ВЭД)
+# Алкоголь, табак, спирт — не допускаются к перемещению по Калининградскому эксперименту
+PROHIBITED_TN_VED_PREFIXES = [
+    "2203",  # Пиво солодовое
+    "2204",  # Вина виноградные
+    "2205",  # Вермуты
+    "2206",  # Напитки сброженные прочие
+    "2207",  # Спирт этиловый
+    "2208",  # Спиртовые настойки, ликёры
+    "2402",  # Сигары, сигариллы, сигареты
+    "2403",  # Прочий табак
+    "3003",  # Лекарственные средства (некоторые)
+    "3004",  # Лекарственные средства расфасованные (некоторые)
+]
+
+# Максимальная стоимость заказа в EUR (жёсткий лимит эксперимента)
+MAX_ORDER_VALUE_EUR = 200
+# Максимальный вес заказа в граммах
+MAX_ORDER_WEIGHT_GRAMS = 31000
+
 
 def _generate_declaration_number() -> str:
     now = datetime.now(timezone.utc)
@@ -63,6 +83,26 @@ async def create_declaration(
 
     company = await get_company_settings(db)
 
+    # Проверка лимитов для каждого заказа (предупреждения, не блокирующие)
+    warnings: list[str] = []
+    eur_rate = company.eur_rate_kopecks or 10500  # fallback
+
+    for order in orders:
+        # Проверка стоимости в EUR
+        order_value_eur = order.total_amount_kopecks / eur_rate
+        if order_value_eur > MAX_ORDER_VALUE_EUR:
+            warnings.append(
+                f"Заказ {order.external_order_id}: стоимость {order_value_eur:.2f} EUR "
+                f"превышает лимит {MAX_ORDER_VALUE_EUR} EUR"
+            )
+
+        # Проверка веса
+        if order.total_weight_grams > MAX_ORDER_WEIGHT_GRAMS:
+            warnings.append(
+                f"Заказ {order.external_order_id}: вес {order.total_weight_grams}г "
+                f"превышает лимит {MAX_ORDER_WEIGHT_GRAMS}г"
+            )
+
     total_weight = sum(o.total_weight_grams for o in orders)
     total_value = sum(o.total_amount_kopecks for o in orders)
     total_items = sum(len(o.items) for o in orders)
@@ -71,6 +111,18 @@ async def create_declaration(
     if company.usd_rate_kopecks > 0:
         total_value_usd_cents = int(total_value * 100 / company.usd_rate_kopecks)
 
+    total_value_eur_cents = 0
+    if eur_rate > 0:
+        total_value_eur_cents = int(total_value * 100 / eur_rate)
+
+    # Объединяем примечание оператора с предупреждениями
+    note_parts = []
+    if operator_note:
+        note_parts.append(operator_note)
+    if warnings:
+        note_parts.append("ПРЕДУПРЕЖДЕНИЯ: " + "; ".join(warnings))
+    final_note = "\n".join(note_parts) if note_parts else None
+
     declaration = CustomsDeclaration(
         number=_generate_declaration_number(),
         orders_count=len(orders),
@@ -78,13 +130,14 @@ async def create_declaration(
         total_weight_grams=total_weight,
         total_value_kopecks=total_value,
         total_value_usd_cents=total_value_usd_cents,
+        total_value_eur_cents=total_value_eur_cents,
         goods_location=goods_location or company.goods_location or None,
         sender_name=company.company_name,
         sender_address=company.company_address,
         sender_inn=company.company_inn,
         customs_rep_name=company.customs_rep_name or None,
         customs_rep_certificate=company.customs_rep_certificate or None,
-        operator_note=operator_note,
+        operator_note=final_note,
     )
     db.add(declaration)
     await db.flush()
@@ -158,24 +211,60 @@ async def delete_declaration(
     await db.commit()
 
 
+def _is_prohibited_tn_ved(code: str) -> bool:
+    """Проверить, является ли код ТН ВЭД запрещённым/подакцизным."""
+    for prefix in PROHIBITED_TN_VED_PREFIXES:
+        if code.startswith(prefix):
+            return True
+    return False
+
+
 async def validate_declaration(
     db: AsyncSession, declaration_id: uuid.UUID
 ) -> tuple[bool, list[str]]:
-    """Проверить, что у всех товаров заполнены таможенные поля."""
+    """Проверить, что у всех товаров заполнены таможенные поля и соблюдены лимиты."""
     declaration = await get_declaration(db, declaration_id)
+    company = await get_company_settings(db)
     errors: list[str] = []
 
     if not declaration.sender_name:
         errors.append("Не заполнен отправитель (настройки компании)")
 
+    eur_rate = company.eur_rate_kopecks or 10500
+
     for order in declaration.orders:
+        order_prefix = f"Заказ {order.external_order_id}"
+
+        # Паспортные данные получателя
+        if not order.recipient_passport_series or not order.recipient_passport_number:
+            errors.append(f"{order_prefix}: нет паспортных данных получателя (обязательно для ДТЭГ)")
+
+        # Лимит стоимости 200 EUR
+        order_value_eur = order.total_amount_kopecks / eur_rate
+        if order_value_eur > MAX_ORDER_VALUE_EUR:
+            errors.append(
+                f"{order_prefix}: стоимость {order_value_eur:.2f} EUR "
+                f"превышает лимит {MAX_ORDER_VALUE_EUR} EUR"
+            )
+
+        # Лимит веса 31 кг
+        if order.total_weight_grams > MAX_ORDER_WEIGHT_GRAMS:
+            errors.append(
+                f"{order_prefix}: вес {order.total_weight_grams / 1000:.1f} кг "
+                f"превышает лимит {MAX_ORDER_WEIGHT_GRAMS / 1000:.0f} кг"
+            )
+
+        # Проверка товаров
         for i, item in enumerate(order.items):
-            prefix = f"Заказ {order.external_order_id}, товар {i + 1} «{item['name']}»"
+            prefix = f"{order_prefix}, товар {i + 1} «{item['name']}»"
             tn_code = item.get("tn_ved_code", "")
             if not tn_code:
                 errors.append(f"{prefix}: нет кода ТН ВЭД")
             elif len(tn_code.strip()) < 6:
                 errors.append(f"{prefix}: код ТН ВЭД должен быть мин. 6 знаков (ДТЭГ), сейчас: {tn_code}")
+            elif _is_prohibited_tn_ved(tn_code.strip()):
+                errors.append(f"{prefix}: код ТН ВЭД {tn_code} — запрещённый/подакцизный товар")
+
             if not item.get("country_of_origin"):
                 errors.append(f"{prefix}: нет страны происхождения")
 

@@ -23,7 +23,8 @@ class DeliveryService:
     async def calculate(
         self, shop: Shop, postal_code: str, weight_grams: int, total_amount_kopecks: int
     ) -> DeliveryCalculation:
-        max_value_kopecks = settings.MAX_PACKAGE_VALUE_USD * settings.USD_RATE_KOPECKS * 100
+        # Лимит 200 EUR на посылку (Калининградский эксперимент, ПП №1223)
+        max_value_kopecks = settings.MAX_PACKAGE_VALUE_EUR * settings.EUR_RATE_KOPECKS
 
         if total_amount_kopecks > max_value_kopecks:
             return DeliveryCalculation(

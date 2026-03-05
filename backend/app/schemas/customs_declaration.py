@@ -27,6 +27,8 @@ class CustomsDeclarationOrderSummary(BaseModel):
     recipient_name: str
     recipient_address: str
     recipient_postal_code: str
+    recipient_passport_series: str | None = None
+    recipient_passport_number: str | None = None
     items: list[dict]
     total_amount_kopecks: int
     total_weight_grams: int
@@ -44,6 +46,7 @@ class CustomsDeclarationResponse(BaseModel):
     total_weight_grams: int
     total_value_kopecks: int
     total_value_usd_cents: int
+    total_value_eur_cents: int
     sender_name: str
     sender_address: str
     sender_inn: str

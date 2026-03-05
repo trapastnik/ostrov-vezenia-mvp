@@ -28,6 +28,8 @@ const editorOrder = computed<CustomsDeclarationOrder | null>(() => {
     recipient_name: order.value.recipient_name,
     recipient_address: order.value.recipient_address,
     recipient_postal_code: order.value.recipient_postal_code,
+    recipient_passport_series: order.value.recipient_passport_series,
+    recipient_passport_number: order.value.recipient_passport_number,
     items: order.value.items,
     total_amount_kopecks: order.value.total_amount_kopecks,
     total_weight_grams: order.value.total_weight_grams,
@@ -187,6 +189,13 @@ onMounted(load)
             <div v-if="order.recipient_email" class="flex"><dt class="w-28 text-gray-500 shrink-0">Email</dt><dd class="text-gray-800">{{ order.recipient_email }}</dd></div>
             <div class="flex"><dt class="w-28 text-gray-500 shrink-0">Адрес</dt><dd class="text-gray-800">{{ order.recipient_address }}</dd></div>
             <div class="flex"><dt class="w-28 text-gray-500 shrink-0">Индекс</dt><dd class="text-gray-800">{{ order.recipient_postal_code }}</dd></div>
+            <div class="flex">
+              <dt class="w-28 text-gray-500 shrink-0">Паспорт</dt>
+              <dd v-if="order.recipient_passport_series && order.recipient_passport_number" class="text-gray-800 font-mono text-xs">
+                {{ order.recipient_passport_series }} {{ order.recipient_passport_number }}
+              </dd>
+              <dd v-else class="text-amber-600 text-xs">Не заполнен</dd>
+            </div>
           </dl>
         </div>
 

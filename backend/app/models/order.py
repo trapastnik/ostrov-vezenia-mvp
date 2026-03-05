@@ -44,6 +44,9 @@ class Order(Base, TimestampMixin):
     recipient_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     recipient_address: Mapped[str] = mapped_column(Text, nullable=False)
     recipient_postal_code: Mapped[str] = mapped_column(String(6), nullable=False)
+    # Паспортные данные получателя (требование ФТС для ДТЭГ)
+    recipient_passport_series: Mapped[str | None] = mapped_column(String(4), nullable=True)
+    recipient_passport_number: Mapped[str | None] = mapped_column(String(6), nullable=True)
 
     items: Mapped[list] = mapped_column(JSONType, nullable=False)
     total_amount_kopecks: Mapped[int] = mapped_column(Integer, nullable=False)

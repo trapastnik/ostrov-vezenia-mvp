@@ -31,6 +31,7 @@ export interface CustomsDeclaration {
   total_weight_grams: number
   total_value_kopecks: number
   total_value_usd_cents: number
+  total_value_eur_cents: number
   sender_name: string
   sender_address: string
   sender_inn: string
@@ -51,6 +52,8 @@ export interface CustomsDeclarationOrder {
   recipient_name: string
   recipient_address: string
   recipient_postal_code: string
+  recipient_passport_series: string | null
+  recipient_passport_number: string | null
   items: OrderItem[]
   total_amount_kopecks: number
   total_weight_grams: number
@@ -74,6 +77,20 @@ export interface CompanySettings {
   customs_rep_inn: string
   goods_location: string
   usd_rate_kopecks: number
+  eur_rate_kopecks: number
+  rates_updated_at: string | null
+}
+
+export interface TnVedSearchResult {
+  code: string
+  name: string
+  level: number
+  unit: string | null
+}
+
+export interface TnVedSearchResponse {
+  items: TnVedSearchResult[]
+  total: number
 }
 
 export const DECLARATION_STATUS_LABELS: Record<string, string> = {
@@ -102,6 +119,8 @@ export interface Order {
   recipient_email: string | null
   recipient_address: string
   recipient_postal_code: string
+  recipient_passport_series: string | null
+  recipient_passport_number: string | null
   items: OrderItem[]
   total_amount_kopecks: number
   total_weight_grams: number

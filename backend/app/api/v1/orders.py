@@ -46,6 +46,8 @@ async def create_new_order(
         recipient_email=body.recipient.email,
         recipient_address=body.recipient.address,
         recipient_postal_code=body.recipient.postal_code,
+        recipient_passport_series=body.recipient.passport_series,
+        recipient_passport_number=body.recipient.passport_number,
         items=[item.model_dump() for item in body.items],
         total_amount_kopecks=total_amount,
         total_weight_grams=total_weight,

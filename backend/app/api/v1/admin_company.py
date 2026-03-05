@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_operator, get_db
@@ -32,4 +32,20 @@ async def update_settings(
 
     await db.commit()
     await db.refresh(settings)
+    return CompanySettingsResponse.model_validate(settings)
+
+
+@router.post("/settings/update-rates", response_model=CompanySettingsResponse)
+async def update_rates(
+    operator: Operator = Depends(get_current_operator),
+    db: AsyncSession = Depends(get_db),
+):
+    """Обновить курсы USD/EUR из API ЦБ РФ."""
+    from app.services.cbr_rates import update_company_rates
+
+    try:
+        settings = await update_company_rates(db)
+    except Exception as e:
+        raise HTTPException(502, f"Ошибка загрузки курсов ЦБ РФ: {e}")
+
     return CompanySettingsResponse.model_validate(settings)

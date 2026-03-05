@@ -12,3 +12,8 @@ export async function updateCompanySettings(
   const { data } = await api.patch('/admin/company/settings', updates)
   return data
 }
+
+export async function updateRatesFromCBR(): Promise<CompanySettings> {
+  const { data } = await api.post('/admin/company/settings/update-rates')
+  return data
+}

@@ -22,6 +22,9 @@ class RecipientData(BaseModel):
     email: str | None = None
     address: str = Field(..., min_length=5)
     postal_code: str = Field(..., min_length=5, max_length=6)
+    # Паспортные данные получателя (обязательно для ДТЭГ)
+    passport_series: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
+    passport_number: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
 class OrderCreate(BaseModel):
@@ -40,6 +43,8 @@ class OrderResponse(BaseModel):
     recipient_email: str | None
     recipient_address: str
     recipient_postal_code: str
+    recipient_passport_series: str | None = None
+    recipient_passport_number: str | None = None
     items: list[dict]
     total_amount_kopecks: int
     total_weight_grams: int
@@ -107,6 +112,8 @@ class OrderDetailResponse(BaseModel):
     recipient_email: str | None
     recipient_address: str
     recipient_postal_code: str
+    recipient_passport_series: str | None = None
+    recipient_passport_number: str | None = None
     items: list[dict]
     total_amount_kopecks: int
     total_weight_grams: int

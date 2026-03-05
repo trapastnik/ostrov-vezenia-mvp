@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -16,6 +17,8 @@ class CompanySettingsResponse(BaseModel):
     customs_rep_inn: str
     goods_location: str
     usd_rate_kopecks: int
+    eur_rate_kopecks: int
+    rates_updated_at: datetime | None
 
     model_config = {"from_attributes": True}
 
@@ -32,3 +35,4 @@ class CompanySettingsUpdate(BaseModel):
     customs_rep_inn: str | None = Field(None, max_length=12)
     goods_location: str | None = None
     usd_rate_kopecks: int | None = Field(None, gt=0)
+    eur_rate_kopecks: int | None = Field(None, gt=0)

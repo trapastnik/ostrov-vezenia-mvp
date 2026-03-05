@@ -24,6 +24,7 @@ class CustomsDeclaration(Base, TimestampMixin):
     total_weight_grams: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_value_kopecks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_value_usd_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    total_value_eur_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Место нахождения товаров (графа шапки ДТЭГ)
     goods_location: Mapped[str | None] = mapped_column(String(500), nullable=True)

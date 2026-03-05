@@ -8,6 +8,7 @@ from app.api.v1.admin_health import router as admin_health_router
 from app.api.v1.admin_orders import router as admin_orders_router
 from app.api.v1.admin_pochta import router as admin_pochta_router
 from app.api.v1.admin_shops import router as admin_shops_router
+from app.api.v1.admin_tnved import router as admin_tnved_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.delivery import router as delivery_router
 from app.api.v1.orders import router as orders_router
@@ -26,4 +27,5 @@ api_v1_router.include_router(admin_pochta_router)
 api_v1_router.include_router(admin_groups_router)
 api_v1_router.include_router(admin_customs_router)
 api_v1_router.include_router(admin_company_router)
+api_v1_router.include_router(admin_tnved_router)
 api_v1_router.include_router(admin_health_router)

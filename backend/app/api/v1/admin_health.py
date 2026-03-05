@@ -17,7 +17,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin/health", tags=["admin-health"])
 
-APP_VERSION = pkg_version("ostrov-backend")
+try:
+    APP_VERSION = pkg_version("ostrov-backend")
+except Exception:
+    APP_VERSION = "dev"
 _start_time = time.time()
 
 

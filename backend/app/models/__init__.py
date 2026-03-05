@@ -8,6 +8,7 @@ from app.models.order import Order
 from app.models.order_status_history import OrderStatusHistory
 from app.models.shipment_group import ShipmentGroup
 from app.models.shop import Shop
+from app.models.tn_ved_code import TnVedCode
 from app.models.tracking_event import TrackingEvent
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     "OrderStatusHistory",
     "ShipmentGroup",
     "Shop",
+    "TnVedCode",
     "TrackingEvent",
 ]

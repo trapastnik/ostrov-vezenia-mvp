@@ -25,11 +25,11 @@ BASE_URL = "http://localhost:8000/api/v1"
 
 # Тестовые данные получателей
 RECIPIENTS = [
-    {"name": "Иванов Пётр Сергеевич", "phone": "+79261234567", "email": "ivanov@test.ru", "address": "Москва, ул. Ленина, д. 1, кв. 5", "postal_code": "101000"},
-    {"name": "Петрова Анна Викторовна", "phone": "+79161112233", "email": "petrova@test.ru", "address": "Санкт-Петербург, Невский пр-кт, д. 28, кв. 12", "postal_code": "190000"},
-    {"name": "Сидоров Алексей Дмитриевич", "phone": "+79031234567", "email": "sidorov@test.ru", "address": "Новосибирск, ул. Красный проспект, д. 50", "postal_code": "630000"},
-    {"name": "Козлова Мария Александровна", "phone": "+79851112233", "email": "kozlova@test.ru", "address": "Екатеринбург, ул. Малышева, д. 15, кв. 3", "postal_code": "620000"},
-    {"name": "Волков Дмитрий Игоревич", "phone": "+79111234567", "email": "volkov@test.ru", "address": "Казань, ул. Баумана, д. 44", "postal_code": "420000"},
+    {"name": "Иванов Пётр Сергеевич", "phone": "+79261234567", "email": "ivanov@test.ru", "address": "Москва, ул. Ленина, д. 1, кв. 5", "postal_code": "101000", "passport_series": "4515", "passport_number": "123456"},
+    {"name": "Петрова Анна Викторовна", "phone": "+79161112233", "email": "petrova@test.ru", "address": "Санкт-Петербург, Невский пр-кт, д. 28, кв. 12", "postal_code": "190000", "passport_series": "4012", "passport_number": "654321"},
+    {"name": "Сидоров Алексей Дмитриевич", "phone": "+79031234567", "email": "sidorov@test.ru", "address": "Новосибирск, ул. Красный проспект, д. 50", "postal_code": "630000", "passport_series": "5403", "passport_number": "789012"},
+    {"name": "Козлова Мария Александровна", "phone": "+79851112233", "email": "kozlova@test.ru", "address": "Екатеринбург, ул. Малышева, д. 15, кв. 3", "postal_code": "620000", "passport_series": "6510", "passport_number": "345678"},
+    {"name": "Волков Дмитрий Игоревич", "phone": "+79111234567", "email": "volkov@test.ru", "address": "Казань, ул. Баумана, д. 44", "postal_code": "420000", "passport_series": "1600", "passport_number": "901234"},
 ]
 
 # Тестовые товары
