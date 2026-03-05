@@ -70,7 +70,7 @@ app/
 │   ├── order_status_history.py # История смен статуса
 │   ├── batch.py                # Партия заказов
 │   ├── operator.py             # Оператор админки (admin/operator роли)
-│   ├── customs_declaration.py  # ПТД-ЭГ: декларация (number, status, totals, sender snapshot)
+│   ├── customs_declaration.py  # ДТЭГ: декларация (number, status, totals, sender snapshot)
 │   └── company_settings.py     # Настройки компании-отправителя (синглтон)
 ├── schemas/                    # Pydantic request/response модели
 │   ├── order.py                # OrderCreate, OrderResponse, OrderDetailResponse, etc.
@@ -90,7 +90,7 @@ app/
 │   ├── admin_batches.py        # Создание и список партий
 │   ├── admin_shops.py          # CRUD магазинов
 │   ├── admin_groups.py         # Группы отправок + настройки оптимизатора
-│   ├── admin_customs.py        # ПТД-ЭГ: CRUD деклараций, валидация, экспорт CSV/PDF, обновление таможенных полей товаров
+│   ├── admin_customs.py        # ДТЭГ: CRUD деклараций, валидация, экспорт CSV/PDF, обновление таможенных полей товаров
 │   ├── admin_company.py        # Настройки компании-отправителя (GET/PATCH)
 │   ├── admin_pochta.py         # Тест-интерфейс к API Почты России (тарифы, адреса, ФИО, телефон)
 │   └── admin_health.py         # GET /health, GET /health/server, POST /health/run-tests
@@ -106,8 +106,8 @@ app/
 │   ├── order.py                # Бизнес-логика заказов, валидация переходов
 │   ├── grouping_optimizer.py   # Математика оптимизации группировки (score = savings − penalty × wait_hours)
 │   ├── hub_router.py           # Маршрутизация по хабам (10 хабов по первым 3 цифрам индекса)
-│   ├── customs_declaration.py  # Бизнес-логика ПТД-ЭГ: создание, статусы, валидация, обновление таможенных полей
-│   ├── customs_export.py       # Экспорт ПТД-ЭГ в CSV и PDF (reportlab + DejaVuSans для кириллицы)
+│   ├── customs_declaration.py  # Бизнес-логика ДТЭГ: создание, статусы, валидация, обновление таможенных полей
+│   ├── customs_export.py       # Экспорт ДТЭГ в CSV и PDF (reportlab + DejaVuSans для кириллицы)
 │   └── webhook.py              # Отправка уведомлений магазину
 ├── workers/
 │   ├── celery_app.py           # Celery конфигурация + Beat расписание
@@ -144,7 +144,7 @@ admin/src/
 │   ├── ShopsListPage.vue
 │   ├── ShopDetailPage.vue
 │   ├── GroupsPage.vue          # Группы отправок + настройки оптимизатора
-│   ├── CustomsDeclarationsPage.vue  # Список ПТД-ЭГ + создание декларации из заказов
+│   ├── CustomsDeclarationsPage.vue  # Список ДТЭГ + создание декларации из заказов
 │   ├── CustomsDeclarationDetailPage.vue # Детальная декларация: заказы, товары, валидация, экспорт
 │   ├── PochtaTestPage.vue      # Тест-интерфейс API Почты (тарифы, адреса, ФИО, телефон)
 │   └── SystemHealthPage.vue    # Здоровье системы: сервисы, метрики сервера, системные тесты
@@ -241,12 +241,12 @@ Headers: X-Signature: HMAC-SHA256(body, api_key)
            → orders.batch_id = batch.id, orders.status = batch_forming
 ```
 
-### 5. Таможенное оформление (ПТД-ЭГ)
+### 5. Таможенное оформление (ДТЭГ)
 ```
-Оператор → Таможня (ПТД) → Создать декларацию → Выбрать заказы
+Оператор → Таможня (ДТЭГ) → Создать декларацию → Выбрать заказы
            → POST /admin/customs/declarations { order_ids }
            → Снимается снапшот отправителя из company_settings
-           → Декларация(status: draft, number: PTD-YYYYMMDD-HHMMSS)
+           → Декларация(status: draft, number: DTEG-YYYYMMDD-HHMMSS)
            → orders.customs_declaration_id = declaration.id
 
 Оператор → Заполнить ТН ВЭД + страну происхождения для товаров

@@ -257,7 +257,7 @@ onMounted(load)
           </template>
           <template v-else>
             <p class="text-sm text-gray-400">Заказ не включён в декларацию</p>
-            <p class="text-xs text-gray-300 mt-1">Создайте декларацию в разделе «Таможня (ПТД)» или из списка заказов</p>
+            <p class="text-xs text-gray-300 mt-1">Создайте декларацию в разделе «Таможня (ДТЭГ)» или из списка заказов</p>
           </template>
         </div>
 

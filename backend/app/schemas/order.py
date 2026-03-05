@@ -10,8 +10,8 @@ class OrderItem(BaseModel):
     quantity: int = Field(..., gt=0)
     price_kopecks: int = Field(..., gt=0)
     weight_grams: int = Field(..., gt=0)
-    # Таможенные поля (заполняются оператором при создании ПТД-ЭГ)
-    tn_ved_code: str | None = None  # Код ТН ВЭД ЕАЭС (мин. 4 цифры)
+    # Таможенные поля (заполняются оператором при создании ДТЭГ)
+    tn_ved_code: str | None = None  # Код ТН ВЭД ЕАЭС (мин. 6 знаков для ДТЭГ)
     country_of_origin: str | None = None  # ISO 3166-1 alpha-2 (например "CN", "RU")
     brand: str | None = None  # Торговая марка
 

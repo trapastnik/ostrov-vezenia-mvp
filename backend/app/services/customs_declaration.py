@@ -1,4 +1,4 @@
-"""Бизнес-логика таможенных деклараций ПТД-ЭГ."""
+"""Бизнес-логика таможенных деклараций ДТЭГ (Решение ЕЭК №142)."""
 import copy
 import uuid
 from datetime import datetime, timezone
@@ -24,7 +24,7 @@ DECLARATION_ALLOWED_TRANSITIONS = {
 
 def _generate_declaration_number() -> str:
     now = datetime.now(timezone.utc)
-    return f"PTD-{now.strftime('%Y%m%d')}-{now.strftime('%H%M%S')}"
+    return f"DTEG-{now.strftime('%Y%m%d')}-{now.strftime('%H%M%S')}"
 
 
 async def get_company_settings(db: AsyncSession) -> CompanySettings:
@@ -59,7 +59,7 @@ async def create_declaration(
             )
 
     if len(orders) > 500:
-        raise HTTPException(400, "ПТД-ЭГ поддерживает макс. 500 накладных")
+        raise HTTPException(400, "ДТЭГ поддерживает макс. 500 накладных")
 
     company = await get_company_settings(db)
 
@@ -171,8 +171,11 @@ async def validate_declaration(
     for order in declaration.orders:
         for i, item in enumerate(order.items):
             prefix = f"Заказ {order.external_order_id}, товар {i + 1} «{item['name']}»"
-            if not item.get("tn_ved_code"):
+            tn_code = item.get("tn_ved_code", "")
+            if not tn_code:
                 errors.append(f"{prefix}: нет кода ТН ВЭД")
+            elif len(tn_code.strip()) < 6:
+                errors.append(f"{prefix}: код ТН ВЭД должен быть мин. 6 знаков (ДТЭГ), сейчас: {tn_code}")
             if not item.get("country_of_origin"):
                 errors.append(f"{prefix}: нет страны происхождения")
 

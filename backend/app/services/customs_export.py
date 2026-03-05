@@ -1,4 +1,4 @@
-"""Экспорт таможенных деклараций ПТД-ЭГ в CSV и PDF."""
+"""Экспорт таможенных деклараций ДТЭГ в CSV и PDF (Решение ЕЭК №142)."""
 import csv
 import io
 import uuid
@@ -25,7 +25,7 @@ async def _get_declaration(db: AsyncSession, declaration_id: uuid.UUID) -> Custo
 
 
 async def generate_csv(db: AsyncSession, declaration_id: uuid.UUID) -> io.StringIO:
-    """CSV по структуре ПТД-ЭГ для импорта в таможенное ПО."""
+    """CSV по структуре ДТЭГ (Решение ЕЭК №142) для импорта в таможенное ПО."""
     declaration = await _get_declaration(db, declaration_id)
 
     output = io.StringIO()
@@ -34,27 +34,33 @@ async def generate_csv(db: AsyncSession, declaration_id: uuid.UUID) -> io.String
 
     writer = csv.writer(output, delimiter=";")
 
+    # Заголовок CSV соответствует колонкам ДТЭГ
     writer.writerow([
-        "Номер декларации",
-        "N п/п",
-        "Номер накладной (общая)",
-        "Номер накладной (индивид.)",
-        "Отправитель",
-        "Адрес отправителя",
-        "ИНН отправителя",
-        "Получатель ФИО",
-        "Адрес получателя",
-        "Индекс получателя",
-        "Телефон получателя",
-        "N п/п товара",
-        "Наименование товара",
-        "Код ТН ВЭД",
+        # Шапка
+        "Номер ДТЭГ",
+        "Процедура",
+        # Колонки 1–5: Общие сведения
+        "1. N п/п",
+        "2. Номер общей накладной",
+        "3. Номер индивид. накладной",
+        "4. Отправитель",
+        "4. ИНН отправителя",
+        "4. Адрес отправителя",
+        "5. Получатель ФИО",
+        "5. Адрес получателя",
+        "5. Индекс получателя",
+        "5. Телефон получателя",
+        # Колонки 6–13: Сведения о товарах
+        "6. N п/п товара",
+        "7. Наименование товара",
+        "8. Код ТН ВЭД",
         "Страна происхождения",
         "Торговая марка",
-        "Количество (шт)",
-        "Вес брутто (кг)",
-        "Валюта",
-        "Стоимость (руб)",
+        "9. Доп. единицы",
+        "10. Масса брутто (кг)",
+        "11. Масса нетто (кг)",
+        "12. Валюта / Стоимость",
+        "13. Таможенная стоимость (руб)",
         "Стоимость (USD)",
     ])
 
@@ -70,8 +76,12 @@ async def generate_csv(db: AsyncSession, declaration_id: uuid.UUID) -> io.String
             item_in_waybill += 1
 
             qty = item["quantity"]
-            weight_kg = round(item["weight_grams"] * qty / 1000, 3)
+            weight_brutto_kg = round(item["weight_grams"] * qty / 1000, 3)
+            # Для товаров ≤200 EUR масса нетто = масса брутто (п.27 ДТЭГ)
+            weight_netto_kg = weight_brutto_kg
             value_rub = round(item["price_kopecks"] * qty / 100, 2)
+            # Таможенная стоимость = стоимость товара (для ≤200 EUR)
+            customs_value_rub = value_rub
 
             value_usd = 0.0
             if declaration.total_value_kopecks > 0 and declaration.total_value_usd_cents > 0:
@@ -80,12 +90,13 @@ async def generate_csv(db: AsyncSession, declaration_id: uuid.UUID) -> io.String
 
             writer.writerow([
                 declaration.number,
+                "4000",  # Импорт для внутреннего потребления
                 waybill_seq,
                 declaration.number,
                 order.external_order_id,
                 declaration.sender_name,
-                declaration.sender_address,
                 declaration.sender_inn,
+                declaration.sender_address,
                 order.recipient_name,
                 order.recipient_address,
                 order.recipient_postal_code,
@@ -95,10 +106,11 @@ async def generate_csv(db: AsyncSession, declaration_id: uuid.UUID) -> io.String
                 item.get("tn_ved_code", ""),
                 item.get("country_of_origin", ""),
                 item.get("brand", ""),
-                qty,
-                weight_kg,
-                "RUB",
-                value_rub,
+                "",  # Доп. единицы (не обязательно при ≤200 EUR)
+                weight_brutto_kg,
+                weight_netto_kg,
+                f"RUB / {value_rub:.2f}",
+                customs_value_rub,
                 value_usd,
             ])
 
@@ -108,11 +120,11 @@ async def generate_csv(db: AsyncSession, declaration_id: uuid.UUID) -> io.String
     total_value_usd = round(declaration.total_value_usd_cents / 100, 2)
 
     writer.writerow([
-        "", "", "", "", "", "", "", "", "", "", "",
-        "ИТОГО", "", "", "", "",
-        "",
+        "", "", "", "", "", "", "", "", "", "", "", "",
+        "ИТОГО", "", "", "", "", "",
         total_weight_kg,
-        "RUB",
+        total_weight_kg,
+        f"RUB / {total_value_rub:.2f}",
         total_value_rub,
         total_value_usd,
     ])
@@ -122,9 +134,9 @@ async def generate_csv(db: AsyncSession, declaration_id: uuid.UUID) -> io.String
 
 
 async def generate_pdf(db: AsyncSession, declaration_id: uuid.UUID) -> io.BytesIO:
-    """PDF формы ПТД-ЭГ."""
+    """PDF формы ДТЭГ (Решение ЕЭК №142)."""
     from reportlab.lib import colors
-    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.units import mm
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
     from reportlab.lib.styles import ParagraphStyle
@@ -151,84 +163,102 @@ async def generate_pdf(db: AsyncSession, declaration_id: uuid.UUID) -> io.BytesI
         font_name = "Helvetica"
 
     buffer = io.BytesIO()
+    # Альбомная ориентация для ДТЭГ (больше колонок)
     doc = SimpleDocTemplate(
-        buffer, pagesize=A4,
-        leftMargin=12 * mm, rightMargin=12 * mm,
-        topMargin=15 * mm, bottomMargin=15 * mm,
+        buffer, pagesize=landscape(A4),
+        leftMargin=10 * mm, rightMargin=10 * mm,
+        topMargin=12 * mm, bottomMargin=12 * mm,
     )
 
     normal = ParagraphStyle("Normal", fontName=font_name, fontSize=8, leading=10)
-    heading = ParagraphStyle("Heading", fontName=font_name, fontSize=12, leading=14, spaceAfter=4 * mm)
-    small = ParagraphStyle("Small", fontName=font_name, fontSize=7, leading=9)
+    heading = ParagraphStyle("Heading", fontName=font_name, fontSize=11, leading=13, spaceAfter=3 * mm)
+    small = ParagraphStyle("Small", fontName=font_name, fontSize=6.5, leading=8)
+    small_bold = ParagraphStyle("SmallBold", fontName=font_name, fontSize=6.5, leading=8)
 
     elements: list = []
 
-    # Заголовок
+    # ===== ЗАГОЛОВОК =====
     elements.append(Paragraph(
-        "ПАССАЖИРСКАЯ ТАМОЖЕННАЯ ДЕКЛАРАЦИЯ (ПТД-ЭГ)", heading
+        "ДЕКЛАРАЦИЯ НА ТОВАРЫ ДЛЯ ЭКСПРЕСС-ГРУЗОВ (ДТЭГ)", heading
     ))
-    elements.append(Paragraph(f"Номер: {declaration.number}", normal))
     elements.append(Paragraph(
-        f"Дата: {declaration.created_at.strftime('%d.%m.%Y')}",
+        f"<b>Номер:</b> {declaration.number} &nbsp;&nbsp;&nbsp; "
+        f"<b>Дата:</b> {declaration.created_at.strftime('%d.%m.%Y')} &nbsp;&nbsp;&nbsp; "
+        f"<b>Процедура:</b> 40 00",
         normal,
     ))
-    elements.append(Spacer(1, 4 * mm))
+    elements.append(Spacer(1, 3 * mm))
 
-    # Отправитель
-    sender_data = [
-        [Paragraph("<b>ОТПРАВИТЕЛЬ</b>", normal), ""],
-        [Paragraph("Наименование:", small), Paragraph(declaration.sender_name, normal)],
-        [Paragraph("Адрес:", small), Paragraph(declaration.sender_address, normal)],
-        [Paragraph("ИНН:", small), Paragraph(declaration.sender_inn, normal)],
+    # ===== РАЗДЕЛ A — Регистрационный номер ФТС =====
+    if declaration.fts_reference:
+        elements.append(Paragraph(
+            f"<b>A. Рег. номер ФТС:</b> {declaration.fts_reference}", normal
+        ))
+        elements.append(Spacer(1, 2 * mm))
+
+    # ===== ШАПКА: Отправитель / Получатель / Таможенный представитель =====
+    header_data = [
+        [
+            Paragraph("<b>ОТПРАВИТЕЛЬ (по общей накладной)</b>", small),
+            Paragraph("<b>ТАМОЖЕННЫЙ ПРЕДСТАВИТЕЛЬ</b>", small),
+            Paragraph("<b>МЕСТО НАХОЖДЕНИЯ ТОВАРОВ</b>", small),
+        ],
+        [
+            Paragraph(
+                f"{declaration.sender_name}<br/>"
+                f"{declaration.sender_address}<br/>"
+                f"ИНН: {declaration.sender_inn}",
+                small,
+            ),
+            Paragraph(
+                f"{declaration.customs_rep_name or '—'}<br/>"
+                f"Свид.: {declaration.customs_rep_certificate or '—'}",
+                small,
+            ),
+            Paragraph(declaration.goods_location or "—", small),
+        ],
     ]
-    t = Table(sender_data, colWidths=[35 * mm, 140 * mm])
+    t = Table(header_data, colWidths=[100 * mm, 90 * mm, 80 * mm])
     t.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.5, colors.black),
         ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.grey),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.92, 0.92, 0.92)),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
     ]))
     elements.append(t)
     elements.append(Spacer(1, 3 * mm))
 
-    # Таможенный представитель
-    if declaration.customs_rep_name:
-        rep_data = [
-            [Paragraph("<b>ТАМОЖЕННЫЙ ПРЕДСТАВИТЕЛЬ</b>", normal), ""],
-            [Paragraph("Наименование:", small), Paragraph(declaration.customs_rep_name or "", normal)],
-            [Paragraph("Свидетельство:", small), Paragraph(declaration.customs_rep_certificate or "", normal)],
-        ]
-        t = Table(rep_data, colWidths=[35 * mm, 140 * mm])
-        t.setStyle(TableStyle([
-            ("BOX", (0, 0), (-1, -1), 0.5, colors.black),
-            ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.grey),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ]))
-        elements.append(t)
-        elements.append(Spacer(1, 3 * mm))
-
-    # Место нахождения товаров
-    if declaration.goods_location:
-        elements.append(Paragraph(
-            f"<b>Место нахождения товаров:</b> {declaration.goods_location}",
-            normal,
-        ))
-        elements.append(Spacer(1, 3 * mm))
-
-    # Таблица товаров
-    header = [
-        Paragraph("<b>N п/п</b>", small),
-        Paragraph("<b>Накладная</b>", small),
-        Paragraph("<b>Получатель</b>", small),
-        Paragraph("<b>N товара</b>", small),
-        Paragraph("<b>Наименование</b>", small),
-        Paragraph("<b>ТН ВЭД</b>", small),
-        Paragraph("<b>Кол-во</b>", small),
-        Paragraph("<b>Вес (кг)</b>", small),
-        Paragraph("<b>Стоимость (руб)</b>", small),
+    # ===== ТАБЛИЦА ТОВАРОВ (колонки 1–13 ДТЭГ) =====
+    table_header = [
+        Paragraph("<b>1<br/>N п/п</b>", small),
+        Paragraph("<b>2<br/>Общая накл.</b>", small),
+        Paragraph("<b>3<br/>Индивид. накл.</b>", small),
+        Paragraph("<b>5. Получатель</b>", small),
+        Paragraph("<b>6<br/>N товара</b>", small),
+        Paragraph("<b>7. Наименование</b>", small),
+        Paragraph("<b>8<br/>ТН ВЭД</b>", small),
+        Paragraph("<b>Страна</b>", small),
+        Paragraph("<b>10<br/>Брутто (кг)</b>", small),
+        Paragraph("<b>11<br/>Нетто (кг)</b>", small),
+        Paragraph("<b>12<br/>Валюта / Стоимость</b>", small),
+        Paragraph("<b>13<br/>Там. стоимость</b>", small),
     ]
 
-    col_widths = [10 * mm, 22 * mm, 35 * mm, 12 * mm, 38 * mm, 18 * mm, 12 * mm, 15 * mm, 20 * mm]
-    table_data = [header]
+    col_widths = [
+        10 * mm,   # 1. N п/п
+        20 * mm,   # 2. Общая накладная
+        22 * mm,   # 3. Индивид. накладная
+        38 * mm,   # 5. Получатель
+        12 * mm,   # 6. N товара
+        42 * mm,   # 7. Наименование
+        16 * mm,   # 8. ТН ВЭД
+        10 * mm,   # Страна
+        16 * mm,   # 10. Брутто
+        16 * mm,   # 11. Нетто
+        24 * mm,   # 12. Валюта/Стоимость
+        22 * mm,   # 13. Там. стоимость
+    ]
+    table_data = [table_header]
 
     waybill_seq = 0
     item_global_seq = 0
@@ -242,36 +272,45 @@ async def generate_pdf(db: AsyncSession, declaration_id: uuid.UUID) -> io.BytesI
             item_in_waybill += 1
 
             qty = item["quantity"]
-            weight_kg = round(item["weight_grams"] * qty / 1000, 3)
+            weight_brutto_kg = round(item["weight_grams"] * qty / 1000, 3)
+            weight_netto_kg = weight_brutto_kg  # При ≤200 EUR нетто = брутто
             value_rub = round(item["price_kopecks"] * qty / 100, 2)
+            customs_value_rub = value_rub  # При ≤200 EUR таможенная стоимость = стоимость
 
             brand_str = f" ({item['brand']})" if item.get("brand") else ""
             name_str = f"{item['name']}{brand_str}"
 
             row = [
                 Paragraph(str(waybill_seq), small),
+                Paragraph(declaration.number, small),
                 Paragraph(order.external_order_id, small),
-                Paragraph(f"{order.recipient_name}, {order.recipient_postal_code}", small),
+                Paragraph(f"{order.recipient_name}<br/>{order.recipient_postal_code}", small),
                 Paragraph(f"{item_global_seq}/{item_in_waybill}", small),
                 Paragraph(name_str, small),
                 Paragraph(item.get("tn_ved_code", "—"), small),
-                Paragraph(str(qty), small),
-                Paragraph(str(weight_kg), small),
-                Paragraph(f"{value_rub:.2f}", small),
+                Paragraph(item.get("country_of_origin", "—"), small),
+                Paragraph(str(weight_brutto_kg), small),
+                Paragraph(str(weight_netto_kg), small),
+                Paragraph(f"RUB<br/>{value_rub:.2f}", small),
+                Paragraph(f"RUB<br/>{customs_value_rub:.2f}", small),
             ]
             table_data.append(row)
 
     # Итоговая строка
     total_weight_kg = round(declaration.total_weight_grams / 1000, 3)
     total_value_rub = round(declaration.total_value_kopecks / 100, 2)
+    total_value_usd = round(declaration.total_value_usd_cents / 100, 2)
 
     totals_row = [
         "", "", "", "",
+        "",
         Paragraph("<b>ИТОГО</b>", small),
         "",
         "",
         Paragraph(f"<b>{total_weight_kg}</b>", small),
-        Paragraph(f"<b>{total_value_rub:.2f}</b>", small),
+        Paragraph(f"<b>{total_weight_kg}</b>", small),
+        Paragraph(f"<b>RUB<br/>{total_value_rub:.2f}</b>", small),
+        Paragraph(f"<b>RUB<br/>{total_value_rub:.2f}</b>", small),
     ]
     table_data.append(totals_row)
 
@@ -282,23 +321,117 @@ async def generate_pdf(db: AsyncSession, declaration_id: uuid.UUID) -> io.BytesI
         ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.92, 0.92, 0.92)),
         ("BACKGROUND", (0, -1), (-1, -1), colors.Color(0.95, 0.95, 0.95)),
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("FONTSIZE", (0, 0), (-1, -1), 7),
+        ("FONTSIZE", (0, 0), (-1, -1), 6.5),
     ]))
     elements.append(t)
 
+    elements.append(Spacer(1, 4 * mm))
+
+    # ===== USD эквивалент (справочно) =====
+    elements.append(Paragraph(
+        f"<b>Стоимость в USD (справочно):</b> {total_value_usd:.2f} USD",
+        normal,
+    ))
+
+    elements.append(Spacer(1, 4 * mm))
+
+    # ===== РАЗДЕЛ B — Исчисление платежей =====
+    elements.append(Paragraph("<b>B. ИСЧИСЛЕНИЕ ТАМОЖЕННЫХ ПОШЛИН, НАЛОГОВ, СБОРОВ</b>", normal))
+    elements.append(Spacer(1, 2 * mm))
+
+    b_header = [
+        Paragraph("<b>Товар</b>", small),
+        Paragraph("<b>Код вида платежа</b>", small),
+        Paragraph("<b>База исчисления</b>", small),
+        Paragraph("<b>Ед. изм.</b>", small),
+        Paragraph("<b>Ставка</b>", small),
+        Paragraph("<b>Сумма (руб)</b>", small),
+    ]
+    b_data = [b_header]
+    # При ≤200 EUR пошлина = 0, добавляем одну строку-заглушку
+    b_data.append([
+        Paragraph("—", small),
+        Paragraph("—", small),
+        Paragraph("—", small),
+        Paragraph("—", small),
+        Paragraph("0%", small),
+        Paragraph("0.00", small),
+    ])
+
+    b_widths = [50 * mm, 30 * mm, 40 * mm, 20 * mm, 25 * mm, 30 * mm]
+    t_b = Table(b_data, colWidths=b_widths)
+    t_b.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.black),
+        ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.grey),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.92, 0.92, 0.92)),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    elements.append(t_b)
+
+    elements.append(Spacer(1, 4 * mm))
+
+    # ===== РАЗДЕЛ B1 — Подробности уплаты =====
+    elements.append(Paragraph(
+        "<b>B1. Подробности уплаты:</b> Не применимо (товары ≤200 EUR, пошлина 0%)",
+        normal,
+    ))
+
     elements.append(Spacer(1, 6 * mm))
 
-    # Регистрационный номер ФТС
-    if declaration.fts_reference:
-        elements.append(Paragraph(
-            f"<b>Рег. номер ФТС (A):</b> {declaration.fts_reference}",
-            normal,
-        ))
+    # ===== Лицо, заполнившее ДТЭГ =====
+    signer_data = [
+        [Paragraph("<b>Сведения о лице, заполнившем ДТЭГ</b>", small), "", ""],
+        [
+            Paragraph("Таможенный представитель:", small),
+            Paragraph(declaration.customs_rep_name or "—", small),
+            Paragraph(f"Свид.: {declaration.customs_rep_certificate or '—'}", small),
+        ],
+        [
+            Paragraph("Подпись:", small),
+            Paragraph("________________________", small),
+            Paragraph(f"Дата: {declaration.created_at.strftime('%d.%m.%Y')}", small),
+        ],
+    ]
+    t_s = Table(signer_data, colWidths=[55 * mm, 80 * mm, 60 * mm])
+    t_s.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.black),
+        ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.grey),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.92, 0.92, 0.92)),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("SPAN", (0, 0), (-1, 0)),
+    ]))
+    elements.append(t_s)
 
-    # Подпись
-    elements.append(Spacer(1, 10 * mm))
-    elements.append(Paragraph("Подпись: ________________________", normal))
-    elements.append(Paragraph(f"Дата: {declaration.created_at.strftime('%d.%m.%Y')}", normal))
+    elements.append(Spacer(1, 4 * mm))
+
+    # ===== Разделы C и D (заполняются таможней) =====
+    cd_data = [
+        [
+            Paragraph("<b>C. Сведения о выпуске / отказе</b>", small),
+            Paragraph("<b>D. Прочие отметки</b>", small),
+        ],
+        [
+            Paragraph("(заполняется таможенным органом)", small),
+            Paragraph("(заполняется таможенным органом)", small),
+        ],
+    ]
+    t_cd = Table(cd_data, colWidths=[130 * mm, 130 * mm])
+    t_cd.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.black),
+        ("INNERGRID", (0, 0), (-1, -1), 0.25, colors.grey),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.Color(0.92, 0.92, 0.92)),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 1), (-1, 1), 10),
+        ("BOTTOMPADDING", (0, 1), (-1, 1), 20),
+    ]))
+    elements.append(t_cd)
+
+    # Примечание оператора
+    if declaration.operator_note:
+        elements.append(Spacer(1, 3 * mm))
+        elements.append(Paragraph(
+            f"<b>Примечание:</b> {declaration.operator_note}", normal
+        ))
 
     doc.build(elements)
     buffer.seek(0)

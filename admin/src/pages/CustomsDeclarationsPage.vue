@@ -178,7 +178,7 @@ onMounted(() => {
 
 <template>
   <div>
-    <h2 class="text-2xl font-bold text-gray-800 mb-6">Таможня (ПТД-ЭГ)</h2>
+    <h2 class="text-2xl font-bold text-gray-800 mb-6">Таможня (ДТЭГ)</h2>
 
     <!-- Tabs -->
     <div class="flex gap-1 mb-6">
@@ -345,7 +345,7 @@ onMounted(() => {
         <!-- Header -->
         <div class="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
           <h3 class="text-lg font-semibold text-gray-800">Создать декларацию</h3>
-          <span class="text-sm text-gray-500">Выберите заказы для включения в ПТД-ЭГ</span>
+          <span class="text-sm text-gray-500">Выберите заказы для включения в ДТЭГ</span>
           <button @click="showCreateModal = false" class="ml-auto text-gray-400 hover:text-gray-600 cursor-pointer text-xl">&times;</button>
         </div>
 

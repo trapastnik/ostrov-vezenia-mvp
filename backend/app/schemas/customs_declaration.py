@@ -74,7 +74,7 @@ class CustomsDeclarationListResponse(BaseModel):
 
 class OrderItemCustomsUpdate(BaseModel):
     item_index: int = Field(..., ge=0)
-    tn_ved_code: str = Field("", max_length=10)
+    tn_ved_code: str = Field("", max_length=10)  # ДТЭГ: мин. 6 знаков
     country_of_origin: str = Field("", max_length=2)
     brand: str | None = None
 

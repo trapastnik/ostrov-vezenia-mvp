@@ -414,7 +414,7 @@ onUnmounted(() => {
             </button>
             <a
               :href="pdfUrl"
-              :download="`ptd-eg-${declaration.number}.pdf`"
+              :download="`dteg-${declaration.number}.pdf`"
               class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
             >
               Скачать

@@ -152,7 +152,7 @@ async def export_csv_endpoint(
         csv_buffer,
         media_type="text/csv; charset=utf-8",
         headers={
-            "Content-Disposition": f'attachment; filename="ptd-eg-{declaration_id}.csv"',
+            "Content-Disposition": f'attachment; filename="dteg-{declaration_id}.csv"',
         },
     )
 
@@ -168,7 +168,7 @@ async def export_pdf_endpoint(
         pdf_buffer,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="ptd-eg-{declaration_id}.pdf"',
+            "Content-Disposition": f'attachment; filename="dteg-{declaration_id}.pdf"',
         },
     )
 

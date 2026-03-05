@@ -8,7 +8,7 @@ from app.models.base import Base, TimestampMixin, generate_uuid
 
 
 class CustomsDeclaration(Base, TimestampMixin):
-    """ПТД-ЭГ — Пассажирская таможенная декларация для экспресс-грузов."""
+    """ДТЭГ — Декларация на товары для экспресс-грузов (Решение ЕЭК №142)."""
 
     __tablename__ = "customs_declarations"
 
@@ -25,7 +25,7 @@ class CustomsDeclaration(Base, TimestampMixin):
     total_value_kopecks: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_value_usd_cents: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
-    # Место нахождения товаров (п.8 шапки ПТД-ЭГ)
+    # Место нахождения товаров (графа шапки ДТЭГ)
     goods_location: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     # Снапшот отправителя (фиксируется при создании)
@@ -44,7 +44,7 @@ class CustomsDeclaration(Base, TimestampMixin):
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    # Регистрационный номер ФТС (поле A, заполняется после подачи)
+    # Регистрационный номер ФТС (раздел A ДТЭГ, заполняется таможенным органом)
     fts_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     orders = relationship("Order", back_populates="customs_declaration")

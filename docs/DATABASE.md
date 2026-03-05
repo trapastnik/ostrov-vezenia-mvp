@@ -89,7 +89,7 @@ Prod: PostgreSQL 16 + asyncpg
 | internal_track_number | VARCHAR(30) | NULL, INDEX | Внутренний трек OV-XXXXXX |
 | batch_id | UUID | FK batches.id, NULL | Партия |
 | shipment_group_id | UUID | FK shipment_groups.id, NULL | Группа отправки |
-| customs_declaration_id | UUID | FK customs_declarations.id, NULL | ПТД-ЭГ декларация |
+| customs_declaration_id | UUID | FK customs_declarations.id, NULL | ДТЭГ декларация |
 | public_tariff_kopecks | INTEGER | NULL | Публичный тариф |
 | contract_tariff_kopecks | INTEGER | NULL | Контрактный тариф |
 | tariff_savings_kopecks | INTEGER | NULL | Экономия |
@@ -122,7 +122,7 @@ Prod: PostgreSQL 16 + asyncpg
 ]
 ```
 
-Поля `tn_ved_code`, `country_of_origin`, `brand` добавляются при заполнении таможенных данных через ПТД-ЭГ.
+Поля `tn_ved_code`, `country_of_origin`, `brand` добавляются при заполнении таможенных данных через ДТЭГ.
 
 ---
 
@@ -177,12 +177,12 @@ Prod: PostgreSQL 16 + asyncpg
 
 ---
 
-### customs_declarations — Таможенные декларации (ПТД-ЭГ)
+### customs_declarations — Таможенные декларации (ДТЭГ)
 
 | Поле | Тип | Ограничения | Описание |
 |------|-----|-------------|----------|
 | id | UUID | PK | |
-| number | VARCHAR(30) | UNIQUE, NOT NULL | Номер (PTD-YYYYMMDD-HHMMSS) |
+| number | VARCHAR(30) | UNIQUE, NOT NULL | Номер (DTEG-YYYYMMDD-HHMMSS) |
 | status | VARCHAR(30) | NOT NULL, default 'draft' | draft / ready / submitted / accepted / rejected |
 | orders_count | INTEGER | NOT NULL | Количество заказов |
 | items_count | INTEGER | NOT NULL | Количество товарных позиций |

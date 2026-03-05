@@ -453,7 +453,7 @@ Query: `page`, `per_page`
 
 ---
 
-## Таможенные декларации (ПТД-ЭГ)
+## Таможенные декларации (ДТЭГ)
 
 ### GET /admin/customs/declarations — Список деклараций
 
@@ -465,7 +465,7 @@ Query: `page`, `per_page`, `status`
   "items": [
     {
       "id": "uuid",
-      "number": "PTD-20260304-151234",
+      "number": "DTEG-20260304-151234",
       "status": "draft",
       "orders_count": 5,
       "items_count": 12,
@@ -578,7 +578,7 @@ Query: `page`, `per_page`, `status`
 
 ### GET /admin/customs/declarations/{id}/export/pdf — Экспорт PDF
 
-Возвращает PDF с формой ПТД-ЭГ (шрифт DejaVuSans для кириллицы).
+Возвращает PDF с формой ДТЭГ (шрифт DejaVuSans для кириллицы).
 
 ---
 

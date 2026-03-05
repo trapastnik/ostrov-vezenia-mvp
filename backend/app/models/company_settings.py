@@ -14,7 +14,7 @@ class CompanySettings(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=generate_uuid)
     scope: Mapped[str] = mapped_column(String(30), unique=True, default="global", nullable=False)
 
-    # Данные отправителя (колонки 1, 4 ПТД-ЭГ)
+    # Данные отправителя (графа «Отправитель» и колонка 4 ДТЭГ)
     company_name: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     company_address: Mapped[str] = mapped_column(Text, default="", nullable=False)
     company_inn: Mapped[str] = mapped_column(String(12), default="", nullable=False)
