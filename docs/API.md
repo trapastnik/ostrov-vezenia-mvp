@@ -658,6 +658,31 @@ assert expected == request.headers["X-Signature"]
 
 ## Справочник ТН ВЭД
 
+### GET /admin/tnved/children — Навигация по дереву ТН ВЭД
+
+Иерархическая навигация (lazy loading): группы → позиции → подпозиции.
+
+Query-параметры:
+
+| Параметр | Тип | По умолчанию | Описание |
+|----------|-----|-------------|----------|
+| parent_code | string | null | Код родителя (пусто = корневые группы level=2) |
+
+Ответ (200):
+```json
+{
+  "items": [
+    {"code": "6400000000", "name": "Обувь, гетры и аналогичные изделия", "level": 2, "unit": null, "note": null, "has_children": true},
+    {"code": "6500000000", "name": "Головные уборы и их части", "level": 2, "unit": null, "note": null, "has_children": true}
+  ],
+  "parent": null
+}
+```
+
+При указании `parent_code` — `parent` содержит информацию о родительском коде (для breadcrumbs).
+
+---
+
 ### GET /admin/tnved/search — Поиск кодов ТН ВЭД
 
 Query-параметры:

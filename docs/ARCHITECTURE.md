@@ -92,6 +92,7 @@ app/
 │   ├── admin_groups.py         # Группы отправок + настройки оптимизатора
 │   ├── admin_customs.py        # ДТЭГ: CRUD деклараций, валидация, экспорт CSV/PDF, обновление таможенных полей товаров
 │   ├── admin_company.py        # Настройки компании-отправителя (GET/PATCH)
+│   ├── admin_tnved.py          # Справочник ТН ВЭД: поиск, детали кода, навигация по дереву (children)
 │   ├── admin_pochta.py         # Тест-интерфейс к API Почты России (тарифы, адреса, ФИО, телефон)
 │   └── admin_health.py         # GET /health, GET /health/server, POST /health/run-tests
 ├── core/
@@ -114,7 +115,8 @@ app/
 │   ├── tasks_webhook.py        # Фоновая задача отправки webhook
 │   └── tasks_grouping.py       # Celery задача оптимизатора (каждые 30 мин)
 └── scripts/
-    └── create_admin.py         # Создание первого админ-пользователя
+    ├── create_admin.py         # Создание первого админ-пользователя
+    └── import_tn_ved.py        # Импорт ТН ВЭД (CSV, Excel, TWS.BY формат, --demo); 17K+ кодов
 ```
 
 ### Админ-панель (Vue.js)
@@ -133,6 +135,7 @@ admin/src/
 │   ├── batches.ts              # fetchBatches, createBatch
 │   ├── groups.ts               # fetchGroups, updateGroupStatus, fetchSettings, updateSettings
 │   ├── customs.ts              # fetchDeclarations, createDeclaration, fetchDeclaration, changeStatus, validate, export CSV/PDF, updateOrderItemsCustoms
+│   ├── tnved.ts                # searchTnVed, fetchTnVedDetail, fetchTnVedChildren (дерево ТН ВЭД)
 │   ├── pochta.ts               # testTariff, testAddress, testFio, testPhone (с pochta_log)
 │   └── health.ts               # fetchHealth, runSystemTests, fetchServerMetrics
 ├── pages/
@@ -154,6 +157,7 @@ admin/src/
 │   ├── OrderStatusBadge.vue    # Цветные бейджи статусов
 │   ├── ChangeStatusModal.vue   # Модалка смены статуса с валидацией
 │   ├── CustomsItemEditor.vue   # Модалка редактирования таможенных полей товаров (ТН ВЭД, страна, бренд)
+│   ├── TnVedBrowser.vue        # Иерархический каталог ТН ВЭД (модалка: дерево + breadcrumbs + lazy loading)
 │   └── Pagination.vue
 ├── layouts/
 │   └── DefaultLayout.vue       # Sidebar + content area
