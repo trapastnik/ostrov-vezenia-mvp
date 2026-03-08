@@ -31,6 +31,7 @@ class ostrov_delivery extends CModule
 
         RegisterModule($this->MODULE_ID);
         $this->registerEvents();
+        $this->createOrderProperty();
 
         return true;
     }
@@ -41,6 +42,62 @@ class ostrov_delivery extends CModule
         UnRegisterModule($this->MODULE_ID);
 
         return true;
+    }
+
+    private function createOrderProperty(): void
+    {
+        if (!Loader::includeModule('sale')) {
+            return;
+        }
+
+        // Check if property already exists
+        $dbRes = \Bitrix\Sale\Internals\OrderPropsTable::getList([
+            'filter' => ['CODE' => 'OSTROV_ORDER_ID'],
+            'limit' => 1,
+        ]);
+
+        if ($dbRes->fetch()) {
+            return; // Already exists
+        }
+
+        // Get default person type (first available)
+        $personTypeRes = \Bitrix\Sale\Internals\PersonTypeTable::getList([
+            'order' => ['ID' => 'ASC'],
+            'limit' => 1,
+        ]);
+        $personType = $personTypeRes->fetch();
+        if (!$personType) {
+            return;
+        }
+
+        // Get property group (first available or create)
+        $groupRes = \Bitrix\Sale\Internals\OrderPropsGroupTable::getList([
+            'filter' => ['PERSON_TYPE_ID' => $personType['ID']],
+            'order' => ['ID' => 'ASC'],
+            'limit' => 1,
+        ]);
+        $group = $groupRes->fetch();
+
+        \Bitrix\Sale\Internals\OrderPropsTable::add([
+            'PERSON_TYPE_ID' => $personType['ID'],
+            'NAME' => 'Ostrov Order ID',
+            'CODE' => 'OSTROV_ORDER_ID',
+            'TYPE' => 'STRING',
+            'REQUIRED' => 'N',
+            'USER_PROPS' => 'N',
+            'IS_LOCATION' => 'N',
+            'IS_LOCATION4TAX' => 'N',
+            'IS_PROFILE_NAME' => 'N',
+            'IS_PAYER' => 'N',
+            'IS_EMAIL' => 'N',
+            'IS_PHONE' => 'N',
+            'IS_ZIP' => 'N',
+            'IS_ADDRESS' => 'N',
+            'ACTIVE' => 'Y',
+            'UTIL' => 'Y', // Hidden from user, system property
+            'SORT' => 900,
+            'PROPS_GROUP_ID' => $group ? $group['ID'] : 1,
+        ]);
     }
 
     private function registerEvents(): void
