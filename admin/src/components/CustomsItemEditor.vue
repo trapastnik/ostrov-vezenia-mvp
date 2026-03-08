@@ -110,6 +110,35 @@ function onBrowserSelect(code: string, _name: string, _unit: string | null) {
   browserItemIndex.value = null
 }
 
+// Resize modal by dragging bottom edge
+const modalHeight = ref<number | null>(null)
+const isResizing = ref(false)
+const startY = ref(0)
+const startHeight = ref(0)
+
+function onResizeStart(e: MouseEvent) {
+  isResizing.value = true
+  startY.value = e.clientY
+  const modal = (e.target as HTMLElement).closest('.customs-modal') as HTMLElement
+  if (modal) startHeight.value = modal.offsetHeight
+  document.addEventListener('mousemove', onResizeMove)
+  document.addEventListener('mouseup', onResizeEnd)
+  e.preventDefault()
+}
+
+function onResizeMove(e: MouseEvent) {
+  if (!isResizing.value) return
+  const delta = e.clientY - startY.value
+  const newHeight = Math.max(300, Math.min(startHeight.value + delta, window.innerHeight * 0.95))
+  modalHeight.value = newHeight
+}
+
+function onResizeEnd() {
+  isResizing.value = false
+  document.removeEventListener('mousemove', onResizeMove)
+  document.removeEventListener('mouseup', onResizeEnd)
+}
+
 // Common country codes for quick select
 const commonCountries = [
   { code: 'CN', label: 'Китай' },
@@ -133,7 +162,10 @@ function applyToAll(field: 'tn_ved_code' | 'country_of_origin' | 'brand', value:
 
 <template>
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="emit('close')">
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div
+      class="customs-modal bg-white rounded-xl shadow-xl w-full max-w-4xl overflow-hidden flex flex-col relative"
+      :style="{ height: modalHeight ? modalHeight + 'px' : undefined, maxHeight: modalHeight ? 'none' : '90vh' }"
+    >
       <!-- Header -->
       <div class="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
         <h3 class="text-lg font-semibold text-gray-800">Таможенные данные товаров</h3>
@@ -247,6 +279,14 @@ function applyToAll(field: 'tn_ved_code' | 'country_of_origin' | 'brand', value:
         <button @click="emit('close')" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 cursor-pointer">
           Отмена
         </button>
+      </div>
+
+      <!-- Resize handle -->
+      <div
+        @mousedown="onResizeStart"
+        class="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-blue-100 transition-colors group"
+      >
+        <div class="w-10 h-1 bg-gray-300 group-hover:bg-blue-400 rounded-full mx-auto mt-0.5"></div>
       </div>
     </div>
   </div>
