@@ -6,9 +6,73 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.dependencies import get_current_operator, get_db
 from app.models.operator import Operator
 from app.models.tn_ved_code import TnVedCode
-from app.schemas.tn_ved import TnVedDetailResponse, TnVedSearchResponse, TnVedSearchResult
+from app.schemas.tn_ved import (
+    TnVedDetailResponse,
+    TnVedSearchResponse,
+    TnVedSearchResult,
+    TnVedTreeItem,
+    TnVedTreeResponse,
+)
 
 router = APIRouter(prefix="/admin/tnved", tags=["admin-tnved"])
+
+
+@router.get("/children", response_model=TnVedTreeResponse)
+async def get_tn_ved_children(
+    parent_code: str | None = Query(None, description="Код родителя (пусто = корневые группы)"),
+    operator: Operator = Depends(get_current_operator),
+    db: AsyncSession = Depends(get_db),
+):
+    """Получить дочерние коды для навигации по дереву ТН ВЭД."""
+    if parent_code:
+        # Дети конкретного кода
+        stmt = (
+            select(TnVedCode)
+            .where(TnVedCode.parent_code == parent_code)
+            .order_by(TnVedCode.code)
+        )
+    else:
+        # Корневые коды — минимальный уровень в справочнике
+        min_level_result = await db.execute(
+            select(func.min(TnVedCode.level))
+        )
+        min_level = min_level_result.scalar() or 2
+        stmt = (
+            select(TnVedCode)
+            .where(TnVedCode.level == min_level)
+            .order_by(TnVedCode.code)
+        )
+
+    result = await db.execute(stmt)
+    items = result.scalars().all()
+
+    # Проверяем наличие дочерних кодов для каждого элемента
+    tree_items = []
+    for item in items:
+        child_count_result = await db.execute(
+            select(func.count()).select_from(TnVedCode).where(TnVedCode.parent_code == item.code)
+        )
+        has_children = (child_count_result.scalar() or 0) > 0
+        tree_items.append(TnVedTreeItem(
+            code=item.code,
+            name=item.name,
+            level=item.level,
+            unit=item.unit,
+            note=item.note,
+            has_children=has_children,
+        ))
+
+    # Информация о родителе для хлебных крошек
+    parent_info = None
+    if parent_code:
+        parent_result = await db.execute(
+            select(TnVedCode).where(TnVedCode.code == parent_code)
+        )
+        parent_obj = parent_result.scalar_one_or_none()
+        if parent_obj:
+            parent_info = TnVedSearchResult.model_validate(parent_obj)
+
+    return TnVedTreeResponse(items=tree_items, parent=parent_info)
 
 
 @router.get("/search", response_model=TnVedSearchResponse)

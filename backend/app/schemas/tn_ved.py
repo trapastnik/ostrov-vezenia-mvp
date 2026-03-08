@@ -15,6 +15,22 @@ class TnVedSearchResponse(BaseModel):
     total: int
 
 
+class TnVedTreeItem(BaseModel):
+    code: str
+    name: str
+    level: int
+    unit: str | None = None
+    note: str | None = None
+    has_children: bool = False
+
+    model_config = {"from_attributes": True}
+
+
+class TnVedTreeResponse(BaseModel):
+    items: list[TnVedTreeItem]
+    parent: TnVedSearchResult | None = None
+
+
 class TnVedDetailResponse(BaseModel):
     code: str
     name: str

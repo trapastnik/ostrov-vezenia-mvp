@@ -93,6 +93,20 @@ export interface TnVedSearchResponse {
   total: number
 }
 
+export interface TnVedTreeItem {
+  code: string
+  name: string
+  level: number
+  unit: string | null
+  note: string | null
+  has_children: boolean
+}
+
+export interface TnVedTreeResponse {
+  items: TnVedTreeItem[]
+  parent: TnVedSearchResult | null
+}
+
 export const DECLARATION_STATUS_LABELS: Record<string, string> = {
   draft: 'Черновик',
   ready: 'Готова к подаче',

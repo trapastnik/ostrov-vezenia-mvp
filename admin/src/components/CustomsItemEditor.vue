@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import type { CustomsDeclarationOrder, TnVedSearchResult } from '../types'
 import { searchTnVed } from '../api/tnved'
+import TnVedBrowser from './TnVedBrowser.vue'
 
 const props = defineProps<{
   order: CustomsDeclarationOrder
@@ -89,6 +90,26 @@ function handleSave() {
   emit('save', props.order.id, updates)
 }
 
+// TN VED browser modal
+const showBrowser = ref(false)
+const browserItemIndex = ref<number | null>(null)
+
+function openBrowser(itemIndex: number) {
+  browserItemIndex.value = itemIndex
+  showBrowser.value = true
+}
+
+function onBrowserSelect(code: string, _name: string, _unit: string | null) {
+  if (browserItemIndex.value !== null) {
+    const item = editItems.value[browserItemIndex.value]
+    if (item) {
+      item.tn_ved_code = code
+    }
+  }
+  showBrowser.value = false
+  browserItemIndex.value = null
+}
+
 // Common country codes for quick select
 const commonCountries = [
   { code: 'CN', label: 'Китай' },
@@ -147,15 +168,26 @@ function applyToAll(field: 'tn_ved_code' | 'country_of_origin' | 'brand', value:
               <!-- TN VED code with autocomplete -->
               <div class="relative">
                 <label class="block text-xs text-gray-500 mb-1">Код ТН ВЭД (мин. 6 цифр)</label>
-                <input
-                  :value="item.tn_ved_code"
-                  @input="onTnVedInput(item.index, ($event.target as HTMLInputElement).value)"
-                  @focus="item.tn_ved_code.length >= 2 && onTnVedInput(item.index, item.tn_ved_code)"
-                  @blur="hideDropdown(item.index)"
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
-                  placeholder="640399"
-                  maxlength="10"
-                />
+                <div class="flex gap-1">
+                  <input
+                    :value="item.tn_ved_code"
+                    @input="onTnVedInput(item.index, ($event.target as HTMLInputElement).value)"
+                    @focus="item.tn_ved_code.length >= 2 && onTnVedInput(item.index, item.tn_ved_code)"
+                    @blur="hideDropdown(item.index)"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono"
+                    placeholder="640399"
+                    maxlength="10"
+                  />
+                  <button
+                    @click="openBrowser(item.index)"
+                    class="px-2 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer text-gray-500 hover:text-blue-600 transition-colors flex-shrink-0"
+                    title="Каталог ТН ВЭД"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    </svg>
+                  </button>
+                </div>
                 <!-- Loading indicator -->
                 <div v-if="tnVedLoading[item.index]" class="absolute right-3 top-8">
                   <div class="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
@@ -218,4 +250,11 @@ function applyToAll(field: 'tn_ved_code' | 'country_of_origin' | 'brand', value:
       </div>
     </div>
   </div>
+
+  <!-- TN VED Browser Modal -->
+  <TnVedBrowser
+    v-if="showBrowser"
+    @select="onBrowserSelect"
+    @close="showBrowser = false"
+  />
 </template>
