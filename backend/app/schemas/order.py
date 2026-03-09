@@ -1,11 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+import re
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class OrderItem(BaseModel):
-    name: str
+    name: str = Field(..., min_length=1)
     sku: str | None = None
     quantity: int = Field(..., gt=0)
     price_kopecks: int = Field(..., gt=0)
@@ -17,14 +19,43 @@ class OrderItem(BaseModel):
 
 
 class RecipientData(BaseModel):
-    name: str = Field(..., min_length=2)
-    phone: str = Field(..., min_length=5)
+    name: str = Field(..., min_length=2, max_length=255)
+    phone: str = Field(..., min_length=5, max_length=20)
     email: str | None = None
-    address: str = Field(..., min_length=5)
-    postal_code: str = Field(..., min_length=5, max_length=6)
+    address: str = Field(..., min_length=10, max_length=500)
+    postal_code: str = Field(..., pattern=r"^\d{6}$")
     # Паспортные данные получателя (обязательно для ДТЭГ)
-    passport_series: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
-    passport_number: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+    passport_series: str = Field(..., pattern=r"^\d{4}$")
+    passport_number: str = Field(..., pattern=r"^\d{6}$")
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        """Нормализация и проверка российского телефона."""
+        digits = re.sub(r"[\s\-\(\)\+]", "", v)
+        if digits.startswith("8") and len(digits) == 11:
+            digits = "7" + digits[1:]
+        if not re.match(r"^7\d{10}$", digits):
+            raise ValueError(
+                "Телефон должен быть в формате +7XXXXXXXXXX (российский мобильный)"
+            )
+        return f"+{digits}"
+
+    @field_validator("postal_code")
+    @classmethod
+    def validate_postal_code(cls, v: str) -> str:
+        """Российский почтовый индекс: 6 цифр, не начинается с 0."""
+        if v.startswith("0"):
+            raise ValueError("Почтовый индекс не может начинаться с 0")
+        return v
+
+    @field_validator("address")
+    @classmethod
+    def validate_address(cls, v: str) -> str:
+        """Адрес должен содержать что-то осмысленное."""
+        if not re.search(r"[а-яА-ЯёЁa-zA-Z]", v):
+            raise ValueError("Адрес должен содержать буквы")
+        return v.strip()
 
 
 class OrderCreate(BaseModel):
