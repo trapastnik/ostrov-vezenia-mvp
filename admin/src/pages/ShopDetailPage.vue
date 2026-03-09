@@ -58,7 +58,7 @@ async function save() {
 
 function copyApiKey() {
   if (shop.value) {
-    navigator.clipboard.writeText(shop.value.api_key)
+    navigator.clipboard.writeText(shop.value.api_key ?? '')
     copied.value = true
     setTimeout(() => copied.value = false, 2000)
   }
