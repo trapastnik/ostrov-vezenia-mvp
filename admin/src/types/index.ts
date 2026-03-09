@@ -205,6 +205,42 @@ export interface Batch {
   shipped_at: string | null
 }
 
+export interface BatchOrderSummary {
+  id: string
+  external_order_id: string
+  recipient_name: string
+  recipient_address: string
+  recipient_postal_code: string
+  items: OrderItem[]
+  total_amount_kopecks: number
+  total_weight_grams: number
+  status: string
+}
+
+export interface BatchDetail extends Batch {
+  orders: BatchOrderSummary[]
+}
+
+export const BATCH_STATUS_LABELS: Record<string, string> = {
+  forming: 'Формирование',
+  customs_presented: 'На таможне',
+  customs_cleared: 'Таможня пройдена',
+  shipped: 'Отправлена',
+}
+
+export const BATCH_STATUS_COLORS: Record<string, string> = {
+  forming: 'bg-purple-100 text-purple-800',
+  customs_presented: 'bg-orange-100 text-orange-800',
+  customs_cleared: 'bg-teal-100 text-teal-800',
+  shipped: 'bg-green-100 text-green-800',
+}
+
+export const BATCH_ALLOWED_TRANSITIONS: Record<string, string> = {
+  forming: 'customs_presented',
+  customs_presented: 'customs_cleared',
+  customs_cleared: 'shipped',
+}
+
 export interface PaginatedResponse<T> {
   items: T[]
   total: number

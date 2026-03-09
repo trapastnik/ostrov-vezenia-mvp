@@ -28,3 +28,25 @@ class BatchListResponse(BaseModel):
     page: int
     per_page: int
     pages: int
+
+
+class BatchStatusUpdate(BaseModel):
+    status: str
+
+
+class BatchOrderSummary(BaseModel):
+    id: UUID
+    external_order_id: str
+    recipient_name: str
+    recipient_address: str
+    recipient_postal_code: str
+    items: list[dict]
+    total_amount_kopecks: int
+    total_weight_grams: int
+    status: str
+
+    model_config = {"from_attributes": True}
+
+
+class BatchDetailResponse(BatchResponse):
+    orders: list[BatchOrderSummary]

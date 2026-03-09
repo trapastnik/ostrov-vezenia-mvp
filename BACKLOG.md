@@ -50,27 +50,31 @@
 | 21 | Деплой на VPS 212.113.117.186 | ✅ | Docker, PostgreSQL, Redis, Nginx, Celery — всё работает |
 | 22 | DNS: api.ostrov-vezeniya.ru + admin.ostrov-vezeniya.ru | ✅ | A-записи на 212.113.117.186 |
 | 23 | SSL: Let's Encrypt (setup-ssl.sh) | ✅ | Auto-renew настроен |
-| 24 | Celery + Redis: фоновые задачи | ✅ | celery_app.py работает на VPS |
+| 24 | Celery + Redis: фоновые задачи | ✅ | celery_app.py с explicit include (send_webhook + run_grouping_optimizer) |
 | 25 | Webhook: уведомления магазину при смене статуса (HMAC-SHA256) | 📋 | webhook.py — скаффолд есть |
 | 26 | Интеграционное тестирование: полный цикл расчёт → заказ → статус | 📋 | |
 
 ## Плагины магазинов
 
-### Bitrix (1С-Битрикс) — `plugins/bitrix/ostrov.delivery/`
+### Bitrix (1С-Битрикс) — `plugins/bitrix/ostrov.delivery/` v0.3.0
 
 | # | Задача | Статус | Приоритет | Заметки |
 |---|--------|--------|-----------|---------|
-| 27 | Скаффолд модуля: install, autoload, настройки, логирование | ✅ | — | Работает |
-| 28 | ApiClient: HTTP-клиент к API (calculate, createOrder, getStatus) | ✅ | — | |
-| 29 | OrderMapper: преобразование Bitrix → Ostrov payload | ✅ | — | |
-| 30 | SaleEvents: хук OnSaleOrderSaved → автоэкспорт | ✅ | — | |
-| 31 | OrderExporter: экспорт заказа + сохранение OSTROV_ORDER_ID | ✅ | — | |
-| 32 | Создание property OSTROV_ORDER_ID при установке модуля | ✅ | 🔴 Высокий | `createOrderProperty()` в install/index.php, модуль установлен на тестовом Bitrix |
-| 33 | DeliveryCalculator: подключить к checkout (показать доставку) | 🔧 | 🔴 Высокий | Класс есть, но не интегрирован. Следующий приоритет |
-| 34 | Трекинг статуса: отображение в ЛК покупателя | 📋 | 🟡 Средний | getOrderStatus() есть, UI нет |
-| 35 | Retry/очередь при падении API | 📋 | 🟡 Средний | Сейчас заказ теряется |
-| 36 | Передача SKU в маппере | 📋 | 🟡 Средний | |
-| 37 | Валидация конфига при сохранении (тест-запрос) | 📋 | ⚪ Низкий | |
+| 27 | Скаффолд модуля: install, autoload, настройки, логирование | ✅ | — | |
+| 28 | ApiClient: HTTP-клиент к API (calculate, createOrder, getStatus) | ✅ | — | `Bitrix\Main\Web\HttpClient` |
+| 29 | OrderMapper: преобразование Bitrix → Ostrov payload | ✅ | — | BX- префикс, паспортные данные, вес/цена в копейках |
+| 30 | SaleEvents: хук OnSaleOrderSaved → автоэкспорт | ✅ | — | + `onSaleDeliveryHandlersClassNamesBuildList` для автозагрузки |
+| 31 | OrderExporter: экспорт заказа + сохранение OSTROV_ORDER_ID | ✅ | — | Валидация: postal_code, items, passport (серия≥4, номер≥6) |
+| 32 | Создание property OSTROV_ORDER_ID при установке модуля | ✅ | — | `UTIL=Y`, скрытое от покупателя, `ENTITY_REGISTRY_TYPE=ORDER` |
+| 33 | OstrovHandler: служба доставки в checkout | ✅ | — | Расчёт через API, показывает стоимость + сроки + разбивку (почта + таможня) |
+| 119 | Паспортные поля в checkout (PASSPORT_SERIES, PASSPORT_NUMBER) | ✅ | — | Создаются при установке, обязательные, видны в `sale.order.ajax` автоматически |
+| 120 | Регистрация службы доставки при установке | ✅ | — | `registerDeliveryService()` через `Services\Table::add()` |
+| 121 | Регистрация обработчика автозагрузки классов | ✅ | — | `onSaleDeliveryHandlersClassNamesBuildList` — без него checkout не находит OstrovHandler |
+| 34 | Трекинг статуса: отображение в ЛК покупателя | 📋 | 🟡 Средний | `getOrderStatus()` в ApiClient есть, UI нет |
+| 35 | Retry/очередь при падении API | 📋 | 🟡 Средний | Сейчас ошибка логируется, заказ не экспортируется |
+| 36 | Передача SKU (артикула) в маппере | 📋 | 🟡 Средний | |
+| 37 | Валидация конфига при сохранении (тест-запрос к API) | 📋 | ⚪ Низкий | |
+| 122 | Поддержка нескольких типов плательщиков | 📋 | ⚪ Низкий | Сейчас свойства создаются только для первого PERSON_TYPE_ID |
 
 ### Next.js — `plugins/nextjs/`
 
@@ -127,8 +131,8 @@
 | # | Задача | Статус | Приоритет | Заметки |
 |---|--------|--------|-----------|---------|
 | 41 | История статусов: показывать имя оператора (changed_by) | 📋 | Средний | Данные уже в БД |
-| 42 | Партии: создание партии из выбранных заказов | 📋 | Высокий | API есть, UI — только список |
-| 43 | Партии: детальная страница партии | 📋 | Высокий | |
+| 42 | Партии: создание партии из выбранных заказов | ✅ | Высокий | Модалка с выбором заказов (чекбоксы, фильтр по статусу, пагинация), redirect на detail |
+| 43 | Партии: детальная страница партии + каскад статусов | ✅ | Высокий | Шапка, карточки, хронология, таблица заказов; смена статуса партии каскадом меняет статусы заказов |
 | 44 | Магазины: создание нового магазина через UI | 📋 | Средний | API CRUD есть, UI — только просмотр |
 | 45 | Нормализация адреса: Pochta clean/address при создании заказа | 📋 | Средний | PochtaClient метод есть |
 | 46 | Alembic миграции: autogenerate из моделей | 📋 | Низкий | Сейчас init_db.py → create_all |
@@ -207,19 +211,30 @@
 | # | Задача | Статус | Заметки |
 |---|--------|--------|---------|
 | 104 | Развернуть тестовый Bitrix в Docker на VPS | ✅ | `212.113.117.186:8080`, PHP 8.1 + MySQL 8, «Малый бизнес» |
-| 105 | Установить модуль ostrov.delivery в тестовый Bitrix | ✅ | Через админку, v0.1.0 |
-| 106 | Проверить создание OSTROV_ORDER_ID при установке | 📋 | SSH был rate-limited, не проверено |
-| 107 | Настроить API-ключ в модуле (связать с бэкендом) | 📋 | Settings page: `/bitrix/admin/settings.php?mid=ostrov.delivery` |
-| 108 | Интегрировать DeliveryCalculator в checkout (#33) | 📋 | Основная задача |
-| 109 | Тест: полный цикл заказ в Bitrix → Ostrov API | 📋 | |
+| 105 | Установить модуль ostrov.delivery в тестовый Bitrix | ✅ | Через админку, обновлён до v0.3.0 |
+| 106 | Проверить создание OSTROV_ORDER_ID при установке | ✅ | Свойство создано, `ENTITY_REGISTRY_TYPE=ORDER` |
+| 107 | Настроить API-ключ в модуле (связать с бэкендом) | ✅ | `api.ostrov-vezeniya.ru` + API-key настроены |
+| 108 | Служба доставки «Остров Везения» в checkout | ✅ | Показывает стоимость (Почта + таможня), сроки, разбивку |
+| 119 | Паспортные поля в checkout | ✅ | Баг `ENTITY_REGISTRY_TYPE=NULL` найден и исправлен |
+| 109 | Тест: полный цикл заказ в Bitrix → Ostrov API | ✅ | Checkout → паспорт → экспорт в Ostrov API — работает |
 
 ---
 
-## Последнее обновление: 2026-03-08
+## Инфра-фиксы (2026-03-08)
+
+| # | Задача | Статус | Заметки |
+|---|--------|--------|---------|
+| 116 | Fix: Celery autodiscover → explicit include | ✅ | `autodiscover_tasks` не находил `tasks_webhook.py`/`tasks_grouping.py`, заменён на `include=[]` |
+| 117 | Backend healthcheck в docker-compose.prod.yml | ✅ | `GET /health`, interval=10s, start_period=15s |
+| 118 | Nginx depends_on: backend service_healthy | ✅ | Устраняет 502 при рестарте (nginx ждёт пока backend готов) |
+
+---
+
+## Последнее обновление: 2026-03-09
 
 ### Итого
-- **Сделано**: 79 задач
-- **В работе**: 1
-- **Backlog**: 34 задачи
+- **Сделано**: 92 задачи
+- **В работе**: 0
+- **Backlog**: 28 задач
 - **Репозиторий**: https://github.com/trapastnik/ostrov-vezenia-mvp
 - **VPS**: 212.113.117.186
