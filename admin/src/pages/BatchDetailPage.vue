@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { fetchBatch, changeBatchStatus } from '../api/batches'
 import OrderStatusBadge from '../components/OrderStatusBadge.vue'
 import type { BatchDetail } from '../types'
 import { BATCH_STATUS_LABELS, BATCH_STATUS_COLORS, BATCH_ALLOWED_TRANSITIONS } from '../types'
 
 const route = useRoute()
-const router = useRouter()
 
 const batch = ref<BatchDetail | null>(null)
 const loading = ref(true)
