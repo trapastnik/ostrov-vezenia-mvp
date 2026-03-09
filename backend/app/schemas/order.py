@@ -3,7 +3,16 @@ from uuid import UUID
 
 import re
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+def _mask_passport(value: str | None) -> str | None:
+    """Маскирует паспортные данные: 1234 → **34, 567890 → ****90."""
+    if not value:
+        return value
+    if len(value) <= 2:
+        return "*" * len(value)
+    return "*" * (len(value) - 2) + value[-2:]
 
 
 class OrderItem(BaseModel):
@@ -91,6 +100,12 @@ class OrderResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
+    @model_validator(mode="after")
+    def mask_passport_data(self):
+        self.recipient_passport_series = _mask_passport(self.recipient_passport_series)
+        self.recipient_passport_number = _mask_passport(self.recipient_passport_number)
+        return self
+
 
 class OrderStatusResponse(BaseModel):
     id: UUID
@@ -166,6 +181,12 @@ class OrderDetailResponse(BaseModel):
     history: list[StatusHistoryEntry]
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def mask_passport_data(self):
+        self.recipient_passport_series = _mask_passport(self.recipient_passport_series)
+        self.recipient_passport_number = _mask_passport(self.recipient_passport_number)
+        return self
 
 
 class OrderListResponse(BaseModel):

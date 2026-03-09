@@ -1,3 +1,4 @@
+from app.models.audit_log import AuditLog
 from app.models.base import Base
 from app.models.batch import Batch
 from app.models.company_settings import CompanySettings
@@ -12,6 +13,7 @@ from app.models.tn_ved_code import TnVedCode
 from app.models.tracking_event import TrackingEvent
 
 __all__ = [
+    "AuditLog",
     "Base",
     "Batch",
     "CompanySettings",

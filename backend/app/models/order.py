@@ -2,9 +2,10 @@ import uuid
 
 import json
 
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text, TypeDecorator, UniqueConstraint
+from sqlalchemy import CheckConstraint, Float, ForeignKey, Index, Integer, String, Text, TypeDecorator, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.encryption import decrypt_pii, encrypt_pii
 from app.models.base import Base, TimestampMixin, generate_uuid
 
 
@@ -24,10 +25,32 @@ class JSONType(TypeDecorator):
         return value
 
 
+class EncryptedString(TypeDecorator):
+    """Тип для шифрования ПД в БД (Fernet AES-128-CBC).
+    При записи — шифрует, при чтении — расшифровывает.
+    Увеличенная длина колонки (255) для хранения ciphertext."""
+    impl = String(255)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        return encrypt_pii(value)
+
+    def process_result_value(self, value, dialect):
+        return decrypt_pii(value)
+
+
 class Order(Base, TimestampMixin):
     __tablename__ = "orders"
     __table_args__ = (
         UniqueConstraint("shop_id", "external_order_id", name="uq_shop_external_order"),
+        CheckConstraint(
+            "status IN ('accepted', 'awaiting_pickup', 'received_warehouse', "
+            "'batch_forming', 'customs_presented', 'customs_cleared', "
+            "'awaiting_carrier', 'shipped', 'in_transit', 'delivered', "
+            "'problem', 'cancelled')",
+            name="ck_orders_status",
+        ),
+        Index("ix_orders_shop_id", "shop_id"),
         Index("ix_orders_status", "status"),
         Index("ix_orders_batch_id", "batch_id"),
         Index("ix_orders_created_at", "created_at"),
@@ -45,8 +68,9 @@ class Order(Base, TimestampMixin):
     recipient_address: Mapped[str] = mapped_column(Text, nullable=False)
     recipient_postal_code: Mapped[str] = mapped_column(String(6), nullable=False)
     # Паспортные данные получателя (требование ФТС для ДТЭГ)
-    recipient_passport_series: Mapped[str | None] = mapped_column(String(4), nullable=True)
-    recipient_passport_number: Mapped[str | None] = mapped_column(String(6), nullable=True)
+    # Зашифрованы Fernet (AES-128-CBC + HMAC-SHA256) — требование ФЗ-152
+    recipient_passport_series: Mapped[str | None] = mapped_column(EncryptedString, nullable=True)
+    recipient_passport_number: Mapped[str | None] = mapped_column(EncryptedString, nullable=True)
 
     items: Mapped[list] = mapped_column(JSONType, nullable=False)
     total_amount_kopecks: Mapped[int] = mapped_column(Integer, nullable=False)

@@ -1,7 +1,7 @@
 import math
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_operator, get_db
@@ -14,6 +14,7 @@ from app.schemas.order import (
     OrderResponse,
     StatusHistoryEntry,
 )
+from app.services.audit import log_action
 from app.services.order import change_order_status, get_order_with_history, list_orders
 
 router = APIRouter(prefix="/admin/orders", tags=["admin-orders"])
@@ -79,8 +80,18 @@ async def get_order_detail(
 async def update_order_status(
     order_id: UUID,
     body: ChangeStatusRequest,
+    request: Request,
     operator: Operator = Depends(get_current_operator),
     db: AsyncSession = Depends(get_db),
 ):
     order = await change_order_status(db, order_id, body.status, changed_by=operator.id, comment=body.comment)
+    await log_action(
+        db,
+        action="order.status_change",
+        resource_type="order",
+        resource_id=order_id,
+        operator_id=operator.id,
+        details={"new_status": body.status, "comment": body.comment},
+        ip_address=request.client.host if request.client else None,
+    )
     return OrderResponse.model_validate(order)

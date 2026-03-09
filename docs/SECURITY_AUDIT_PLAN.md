@@ -67,19 +67,48 @@
 
 ---
 
-## Фаза 3 — MEDIUM (следующий спринт)
+## Фаза 3 — MEDIUM
 
-### 3.1 [ ] Шифрование паспортных данных в БД
-### 3.2 [ ] Маскировка паспортов в API-ответах
+### 3.1 [x] Шифрование паспортных данных в БД
+- **Файлы:** `backend/app/core/encryption.py` (новый), `backend/app/models/order.py`, `backend/app/core/config.py`
+- **Решение:** Fernet (AES-128-CBC + HMAC-SHA256) через `EncryptedString` TypeDecorator. Ключ из `PII_ENCRYPTION_KEY` в `.env`. Graceful degradation — без ключа данные хранятся открыто. Обратная совместимость с legacy данными.
+
+### 3.2 [x] Маскировка паспортов в API-ответах
+- **Файл:** `backend/app/schemas/order.py`
+- **Решение:** `_mask_passport()` + `@model_validator(mode="after")` на `OrderResponse` и `OrderDetailResponse`. `1234` → `**34`, `567890` → `****90`.
+
 ### 3.3 [ ] Хеширование API-ключей магазинов (bcrypt)
+> **Отложено** — требует Alembic миграции (3.4) для изменения схемы столбца `api_key` и перехода на хеш-сравнение.
+
 ### 3.4 [ ] Alembic вместо create_all + ALTER
-### 3.5 [ ] Аудит-лог действий администраторов
+> **Отложено** — крупная инфраструктурная задача, требует отдельного спринта.
+
+### 3.5 [x] Аудит-лог действий администраторов
+- **Файлы:** `backend/app/models/audit_log.py` (новый), `backend/app/services/audit.py` (новый), `backend/app/api/v1/admin_orders.py`, `backend/app/api/v1/admin_shops.py`
+- **Решение:** Модель `AuditLog` (operator_id, action, resource_type, resource_id, details JSON, ip_address). `log_action()` пишет в ту же транзакцию. Подключен к CRUD магазинов и смене статусов заказов.
+
 ### 3.6 [ ] JWT → httpOnly cookies
-### 3.7 [ ] Механизм ротации API-ключей
-### 3.8 [ ] CHECK constraints на статусы в БД
-### 3.9 [ ] Индекс на shop_id в orders
-### 3.10 [ ] Кеширование курсов ЦБ РФ (Redis)
-### 3.11 [ ] Экранирование HTML в PDF (operator_note)
+> **Отложено** — требует изменений на фронтенде (удаление localStorage, обработка cookies), отдельный спринт.
+
+### 3.7 [x] Механизм ротации API-ключей
+- **Файл:** `backend/app/api/v1/admin_shops.py`
+- **Решение:** Эндпоинт `POST /admin/shops/{shop_id}/rotate-key`. Генерирует новый ключ, пишет аудит-лог, возвращает `ShopCreateResponse` (ключ показывается один раз).
+
+### 3.8 [x] CHECK constraints на статусы в БД
+- **Файлы:** `backend/app/models/order.py`, `batch.py`, `customs_declaration.py`, `shipment_group.py`
+- **Решение:** `CheckConstraint` на поле `status` для всех моделей — Orders (12 статусов), Batches (4), CustomsDeclarations (5), ShipmentGroups (6). Гарантирует целостность на уровне БД.
+
+### 3.9 [x] Индекс на shop_id в orders
+- **Файл:** `backend/app/models/order.py`
+- **Решение:** `Index("ix_orders_shop_id", "shop_id")` в `__table_args__`.
+
+### 3.10 [x] Кеширование курсов ЦБ РФ (Redis)
+- **Файл:** `backend/app/services/cbr_rates.py`
+- **Решение:** Redis кеш с TTL 1 час (`cbr:rates:daily` ключ). Graceful degradation — при недоступности Redis идёт напрямую в ЦБ.
+
+### 3.11 [x] Экранирование HTML в PDF (operator_note)
+- **Файл:** `backend/app/services/customs_export.py`
+- **Решение:** `_esc()` helper через `html.escape()`. Применён ко всем пользовательским данным в ReportLab `Paragraph()`.
 
 ---
 
@@ -87,6 +116,11 @@
 
 | Фаза | Задач | Сделано | Статус |
 |-------|-------|---------|--------|
-| 1. Critical | 5 | 4 | Done (1.1 — вручную) |
-| 2. High | 6 | 6 | Done |
-| 3. Medium | 11 | 0 | Следующий спринт |
+| 1. Critical | 5 | 4 | ✅ Done (1.1 — вручную) |
+| 2. High | 6 | 6 | ✅ Done |
+| 3. Medium | 11 | 8 | ✅ Done (3 отложены) |
+
+### Отложенные задачи (отдельный спринт)
+- **3.3** Хеширование API-ключей — зависит от 3.4
+- **3.4** Alembic миграции — крупная инфраструктурная задача
+- **3.6** JWT → httpOnly cookies — требует изменений фронтенда

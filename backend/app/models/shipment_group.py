@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, Index, Integer, String
+from sqlalchemy import CheckConstraint, DateTime, Float, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, generate_uuid
@@ -12,6 +12,10 @@ class ShipmentGroup(Base, TimestampMixin):
 
     __tablename__ = "shipment_groups"
     __table_args__ = (
+        CheckConstraint(
+            "status IN ('forming', 'ready', 'dispatched', 'at_hub', 'completed', 'cancelled')",
+            name="ck_shipment_groups_status",
+        ),
         Index("ix_shipment_groups_status", "status"),
         Index("ix_shipment_groups_hub", "hub"),
         Index("ix_shipment_groups_scheduled_at", "scheduled_at"),

@@ -2,6 +2,7 @@
 import csv
 import io
 import uuid
+from html import escape as html_escape
 from typing import Any
 
 from sqlalchemy import select
@@ -9,6 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.customs_declaration import CustomsDeclaration
+
+
+def _esc(value: Any) -> str:
+    """Экранирование HTML для безопасной вставки в ReportLab Paragraph."""
+    if value is None:
+        return "—"
+    return html_escape(str(value))
+
 
 # Символы, которые Excel/LibreOffice интерпретируют как начало формулы
 _CSV_INJECTION_CHARS = ("=", "+", "-", "@", "\t", "\r", "\n")
@@ -221,17 +230,17 @@ async def generate_pdf(db: AsyncSession, declaration_id: uuid.UUID) -> io.BytesI
         ],
         [
             Paragraph(
-                f"{declaration.sender_name}<br/>"
-                f"{declaration.sender_address}<br/>"
-                f"ИНН: {declaration.sender_inn}",
+                f"{_esc(declaration.sender_name)}<br/>"
+                f"{_esc(declaration.sender_address)}<br/>"
+                f"ИНН: {_esc(declaration.sender_inn)}",
                 small,
             ),
             Paragraph(
-                f"{declaration.customs_rep_name or '—'}<br/>"
-                f"Свид.: {declaration.customs_rep_certificate or '—'}",
+                f"{_esc(declaration.customs_rep_name)}<br/>"
+                f"Свид.: {_esc(declaration.customs_rep_certificate)}",
                 small,
             ),
-            Paragraph(declaration.goods_location or "—", small),
+            Paragraph(_esc(declaration.goods_location), small),
         ],
     ]
     t = Table(header_data, colWidths=[100 * mm, 90 * mm, 80 * mm])
@@ -293,24 +302,24 @@ async def generate_pdf(db: AsyncSession, declaration_id: uuid.UUID) -> io.BytesI
             value_rub = round(item["price_kopecks"] * qty / 100, 2)
             customs_value_rub = value_rub  # При ≤200 EUR таможенная стоимость = стоимость
 
-            brand_str = f" ({item['brand']})" if item.get("brand") else ""
-            name_str = f"{item['name']}{brand_str}"
+            brand_str = f" ({_esc(item['brand'])})" if item.get("brand") else ""
+            name_str = f"{_esc(item['name'])}{brand_str}"
 
             row = [
                 Paragraph(str(waybill_seq), small),
-                Paragraph(declaration.number, small),
-                Paragraph(order.external_order_id, small),
+                Paragraph(_esc(declaration.number), small),
+                Paragraph(_esc(order.external_order_id), small),
                 Paragraph(
-                    f"{order.recipient_name}<br/>"
-                    f"{order.recipient_postal_code}<br/>"
-                    f"П: {order.recipient_passport_series or '?'} "
-                    f"{order.recipient_passport_number or '?'}",
+                    f"{_esc(order.recipient_name)}<br/>"
+                    f"{_esc(order.recipient_postal_code)}<br/>"
+                    f"П: {_esc(order.recipient_passport_series)} "
+                    f"{_esc(order.recipient_passport_number)}",
                     small,
                 ),
                 Paragraph(f"{item_global_seq}/{item_in_waybill}", small),
                 Paragraph(name_str, small),
-                Paragraph(item.get("tn_ved_code", "—"), small),
-                Paragraph(item.get("country_of_origin", "—"), small),
+                Paragraph(_esc(item.get("tn_ved_code")), small),
+                Paragraph(_esc(item.get("country_of_origin")), small),
                 Paragraph(str(weight_brutto_kg), small),
                 Paragraph(str(weight_netto_kg), small),
                 Paragraph(f"RUB<br/>{value_rub:.2f}", small),
@@ -453,7 +462,7 @@ async def generate_pdf(db: AsyncSession, declaration_id: uuid.UUID) -> io.BytesI
     if declaration.operator_note:
         elements.append(Spacer(1, 3 * mm))
         elements.append(Paragraph(
-            f"<b>Примечание:</b> {declaration.operator_note}", normal
+            f"<b>Примечание:</b> {_esc(declaration.operator_note)}", normal
         ))
 
     doc.build(elements)

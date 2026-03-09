@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # Через запятую, например: https://admin.ostrov-vezeniya.ru,https://api.ostrov-vezeniya.ru
     CORS_ORIGINS_STR: str = "https://admin.ostrov-vezeniya.ru,https://api.ostrov-vezeniya.ru"
 
+    # Ключ шифрования ПД (Fernet, 32 bytes base64). Генерация: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    PII_ENCRYPTION_KEY: str = ""
+
     POCHTA_API_TOKEN: str = ""
     POCHTA_LOGIN: str = ""
     POCHTA_PASSWORD: str = ""

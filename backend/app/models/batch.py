@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String
+from sqlalchemy import CheckConstraint, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, generate_uuid
@@ -9,6 +9,12 @@ from app.models.base import Base, TimestampMixin, generate_uuid
 
 class Batch(Base, TimestampMixin):
     __tablename__ = "batches"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('forming', 'customs_presented', 'customs_cleared', 'shipped')",
+            name="ck_batches_status",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=generate_uuid)
     number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)

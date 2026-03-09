@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, generate_uuid
@@ -11,6 +11,12 @@ class CustomsDeclaration(Base, TimestampMixin):
     """ДТЭГ — Декларация на товары для экспресс-грузов (Решение ЕЭК №142)."""
 
     __tablename__ = "customs_declarations"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('draft', 'ready', 'submitted', 'accepted', 'rejected')",
+            name="ck_customs_declarations_status",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=generate_uuid)
     number: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
