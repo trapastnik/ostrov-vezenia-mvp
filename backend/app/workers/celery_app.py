@@ -6,6 +6,10 @@ celery_app = Celery(
     "ostrov",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL.rsplit("/", 1)[0] + "/1",
+    include=[
+        "app.workers.tasks_webhook",
+        "app.workers.tasks_grouping",
+    ],
 )
 
 celery_app.conf.update(
@@ -17,8 +21,6 @@ celery_app.conf.update(
     task_default_retry_delay=60,
     task_max_retries=5,
 )
-
-celery_app.autodiscover_tasks(["app.workers"])
 
 celery_app.conf.beat_schedule = {
     "run-grouping-optimizer": {

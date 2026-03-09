@@ -32,12 +32,15 @@ class ostrov_delivery extends CModule
         RegisterModule($this->MODULE_ID);
         $this->registerEvents();
         $this->createOrderProperty();
+        $this->createPassportProperties();
+        $this->registerDeliveryService();
 
         return true;
     }
 
     public function DoUninstall()
     {
+        $this->unregisterDeliveryService();
         $this->unregisterEvents();
         UnRegisterModule($this->MODULE_ID);
 
@@ -97,7 +100,90 @@ class ostrov_delivery extends CModule
             'UTIL' => 'Y', // Hidden from user, system property
             'SORT' => 900,
             'PROPS_GROUP_ID' => $group ? $group['ID'] : 1,
+            'ENTITY_REGISTRY_TYPE' => 'ORDER',
+            'ENTITY_TYPE' => 'ORDER',
         ]);
+    }
+
+    /**
+     * Creates passport properties required for customs declarations.
+     * Passport series and number are mandatory for international shipments from Kaliningrad.
+     */
+    private function createPassportProperties(): void
+    {
+        if (!Loader::includeModule('sale')) {
+            return;
+        }
+
+        // Get default person type (first available)
+        $personTypeRes = \Bitrix\Sale\Internals\PersonTypeTable::getList([
+            'order' => ['ID' => 'ASC'],
+            'limit' => 1,
+        ]);
+        $personType = $personTypeRes->fetch();
+        if (!$personType) {
+            return;
+        }
+
+        // Get first property group for personal data
+        $groupRes = \Bitrix\Sale\Internals\OrderPropsGroupTable::getList([
+            'filter' => ['PERSON_TYPE_ID' => $personType['ID']],
+            'order' => ['ID' => 'ASC'],
+            'limit' => 1,
+        ]);
+        $group = $groupRes->fetch();
+        $groupId = $group ? $group['ID'] : 1;
+
+        $passportProps = [
+            [
+                'CODE' => 'PASSPORT_SERIES',
+                'NAME' => 'Серия паспорта',
+                'DESCRIPTION' => 'Для таможенного оформления (4 цифры)',
+                'SORT' => 700,
+            ],
+            [
+                'CODE' => 'PASSPORT_NUMBER',
+                'NAME' => 'Номер паспорта',
+                'DESCRIPTION' => 'Для таможенного оформления (6 цифр)',
+                'SORT' => 710,
+            ],
+        ];
+
+        foreach ($passportProps as $propDef) {
+            // Check if property already exists
+            $dbRes = \Bitrix\Sale\Internals\OrderPropsTable::getList([
+                'filter' => ['CODE' => $propDef['CODE'], 'PERSON_TYPE_ID' => $personType['ID']],
+                'limit' => 1,
+            ]);
+
+            if ($dbRes->fetch()) {
+                continue; // Already exists
+            }
+
+            \Bitrix\Sale\Internals\OrderPropsTable::add([
+                'PERSON_TYPE_ID' => $personType['ID'],
+                'NAME' => $propDef['NAME'],
+                'CODE' => $propDef['CODE'],
+                'TYPE' => 'STRING',
+                'REQUIRED' => 'Y',
+                'USER_PROPS' => 'Y',
+                'IS_LOCATION' => 'N',
+                'IS_LOCATION4TAX' => 'N',
+                'IS_PROFILE_NAME' => 'N',
+                'IS_PAYER' => 'N',
+                'IS_EMAIL' => 'N',
+                'IS_PHONE' => 'N',
+                'IS_ZIP' => 'N',
+                'IS_ADDRESS' => 'N',
+                'ACTIVE' => 'Y',
+                'UTIL' => 'N',
+                'DESCRIPTION' => $propDef['DESCRIPTION'] ?? '',
+                'SORT' => $propDef['SORT'],
+                'PROPS_GROUP_ID' => $groupId,
+                'ENTITY_REGISTRY_TYPE' => 'ORDER',
+                'ENTITY_TYPE' => 'ORDER',
+            ]);
+        }
     }
 
     private function registerEvents(): void
@@ -109,6 +195,13 @@ class ostrov_delivery extends CModule
             $this->MODULE_ID,
             'Ostrov\\Delivery\\Event\\SaleEvents',
             'onSaleOrderSaved'
+        );
+        $eventManager->registerEventHandler(
+            'sale',
+            'onSaleDeliveryHandlersClassNamesBuildList',
+            $this->MODULE_ID,
+            'Ostrov\\Delivery\\Event\\SaleEvents',
+            'onSaleDeliveryHandlersClassNamesBuildList'
         );
     }
 
@@ -122,5 +215,63 @@ class ostrov_delivery extends CModule
             'Ostrov\\Delivery\\Event\\SaleEvents',
             'onSaleOrderSaved'
         );
+        $eventManager->unRegisterEventHandler(
+            'sale',
+            'onSaleDeliveryHandlersClassNamesBuildList',
+            $this->MODULE_ID,
+            'Ostrov\\Delivery\\Event\\SaleEvents',
+            'onSaleDeliveryHandlersClassNamesBuildList'
+        );
+    }
+
+    private function registerDeliveryService(): void
+    {
+        if (!Loader::includeModule('sale')) {
+            return;
+        }
+
+        // Ensure our autoloader is registered so OstrovHandler class is available
+        Loader::includeModule($this->MODULE_ID);
+
+        // Check if already registered
+        $existing = \Bitrix\Sale\Delivery\Services\Table::getList([
+            'filter' => ['=CLASS_NAME' => '\\Ostrov\\Delivery\\Delivery\\OstrovHandler'],
+            'limit' => 1,
+        ]);
+
+        if ($existing->fetch()) {
+            return;
+        }
+
+        // Register delivery service via direct table insert
+        // Manager::add() validates CLASS_NAME exists which may fail during install
+        $result = \Bitrix\Sale\Delivery\Services\Table::add([
+            'NAME' => 'Остров Везения',
+            'ACTIVE' => 'Y',
+            'DESCRIPTION' => 'Почта России + таможенное оформление (Калининград)',
+            'CLASS_NAME' => '\\Ostrov\\Delivery\\Delivery\\OstrovHandler',
+            'CURRENCY' => 'RUB',
+            'SORT' => 100,
+        ]);
+
+        if (!$result->isSuccess()) {
+            // Non-fatal: log but don't block module installation
+            // Service can be added manually via Bitrix admin
+        }
+    }
+
+    private function unregisterDeliveryService(): void
+    {
+        if (!Loader::includeModule('sale')) {
+            return;
+        }
+
+        $dbRes = \Bitrix\Sale\Delivery\Services\Table::getList([
+            'filter' => ['=CLASS_NAME' => '\\Ostrov\\Delivery\\Delivery\\OstrovHandler'],
+        ]);
+
+        while ($row = $dbRes->fetch()) {
+            \Bitrix\Sale\Delivery\Services\Manager::delete($row['ID']);
+        }
     }
 }

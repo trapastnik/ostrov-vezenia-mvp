@@ -30,7 +30,8 @@
 | HTTP (backend) | httpx (async) | — |
 | Авторизация | JWT (админка), API-ключи (магазины) | — |
 | Хеширование | bcrypt (пароли), SHA256 (API-ключи), HMAC-SHA256 (webhook) | — |
-| Плагин магазина | React/TypeScript npm-пакет (Next.js) | — |
+| Плагин Bitrix | PHP-модуль ostrov.delivery | v0.3.0 |
+| Плагин Next.js | React/TypeScript npm-пакет (в разработке) | — |
 | Деплой | Docker Compose + Nginx + Let's Encrypt | — |
 
 ---
@@ -111,9 +112,9 @@ app/
 │   ├── customs_export.py       # Экспорт ДТЭГ в CSV и PDF (reportlab + DejaVuSans для кириллицы)
 │   └── webhook.py              # Отправка уведомлений магазину
 ├── workers/
-│   ├── celery_app.py           # Celery конфигурация + Beat расписание
-│   ├── tasks_webhook.py        # Фоновая задача отправки webhook
-│   └── tasks_grouping.py       # Celery задача оптимизатора (каждые 30 мин)
+│   ├── celery_app.py           # Celery конфигурация (explicit include) + Beat расписание
+│   ├── tasks_webhook.py        # Фоновая задача отправки webhook (send_webhook)
+│   └── tasks_grouping.py       # Celery задача оптимизатора (run_grouping_optimizer, каждые 30 мин)
 └── scripts/
     ├── create_admin.py         # Создание первого админ-пользователя
     └── import_tn_ved.py        # Импорт ТН ВЭД (CSV, Excel, TWS.BY формат, --demo); 17K+ кодов
@@ -163,6 +164,40 @@ admin/src/
 │   └── DefaultLayout.vue       # Sidebar + content area
 └── types/index.ts              # TypeScript интерфейсы, STATUS_LABELS, ALLOWED_TRANSITIONS
 ```
+
+### Плагин Bitrix (`plugins/bitrix/ostrov.delivery/`)
+
+PHP-модуль для 1С-Битрикс. Устанавливается в `/bitrix/modules/ostrov.delivery/`.
+
+```
+ostrov.delivery/
+├── install/
+│   ├── index.php                # Инсталлятор (события, свойства, служба доставки)
+│   └── version.php              # Версия (0.3.0)
+├── include.php                  # Автозагрузка классов (Loader::registerAutoLoadClasses)
+├── options.php                  # Страница настроек (API URL, ключ, таймаут)
+├── admin/settings.php           # Обёртка настроек для админки
+└── lib/
+    ├── Delivery/OstrovHandler.php    # Служба доставки (extends Base), расчёт через API
+    ├── Event/SaleEvents.php          # OnSaleOrderSaved → автоэкспорт, автозагрузка класса
+    ├── Mapper/OrderMapper.php        # Bitrix Order → Ostrov API payload
+    ├── Service/ApiClient.php         # HTTP-клиент (Bitrix HttpClient + X-API-Key)
+    ├── Service/DeliveryCalculator.php # Обёртка расчёта доставки
+    ├── Service/OrderExporter.php     # Экспорт + валидация (паспорт, индекс, товары)
+    └── Logger/Logger.php             # Debug::writeToFile → ostrov_delivery.log
+```
+
+**Принцип:** модуль не модифицирует файлы Битрикса. Всё через стандартные D7 API:
+- `EventManager` — регистрация обработчиков
+- `OrderPropsTable::add()` — создание свойств заказа
+- `Delivery\Services\Table::add()` — регистрация службы доставки
+
+При установке создаёт 3 свойства заказа:
+- `OSTROV_ORDER_ID` (системное, `UTIL=Y`) — хранит ID в системе Остров
+- `PASSPORT_SERIES` (обязательное) — серия паспорта для таможни
+- `PASSPORT_NUMBER` (обязательное) — номер паспорта для таможни
+
+Подробнее: `plugins/bitrix/ostrov.delivery/README.md`
 
 ### Эмулятор магазина
 
@@ -313,14 +348,21 @@ open http://localhost:8000/shop
 См. [DEPLOY.md](DEPLOY.md)
 
 ```
-Docker Compose:
-  backend   → FastAPI (uvicorn, port 8000)
-  db        → PostgreSQL 16
-  redis     → Redis 7
-  worker    → Celery worker
-  nginx     → Reverse proxy + SSL + static admin
+Docker Compose (healthcheck chain):
+  db (healthy) + redis (healthy)
+    → backend (healthcheck: GET /health, start_period: 15s)
+    → nginx (ждёт backend healthy — без 502 при рестарте)
+  celery_worker → depends on db + redis healthy
+
+Сервисы:
+  backend        → FastAPI (uvicorn, 2 workers, port 8000)
+  db             → PostgreSQL 16
+  redis          → Redis 7
+  celery_worker  → Celery worker (send_webhook + run_grouping_optimizer)
+  nginx          → Reverse proxy + static admin
 
 Домены:
-  api.ostrov-vezeniya.ru   → backend
+  api.ostrov-vezeniya.ru   → backend API
   admin.ostrov-vezeniya.ru → admin SPA
+  ostrov-vezeniya.ru       → admin SPA (основной)
 ```

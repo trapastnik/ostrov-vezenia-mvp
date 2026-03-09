@@ -16,8 +16,24 @@ class OrderExporter
     {
         $payload = OrderMapper::toOstrovPayload($order);
 
-        if (empty($payload['recipient']['postal_code']) || empty($payload['items'])) {
-            Logger::error('Order export skipped: missing recipient postal_code or items', ['order_id' => $order->getId()]);
+        $missing = [];
+        if (empty($payload['recipient']['postal_code'])) {
+            $missing[] = 'postal_code';
+        }
+        if (empty($payload['items'])) {
+            $missing[] = 'items';
+        }
+        if (strlen($payload['recipient']['passport_series'] ?? '') < 4) {
+            $missing[] = 'passport_series';
+        }
+        if (strlen($payload['recipient']['passport_number'] ?? '') < 6) {
+            $missing[] = 'passport_number';
+        }
+        if (!empty($missing)) {
+            Logger::error('Order export skipped: missing required fields', [
+                'order_id' => $order->getId(),
+                'missing' => implode(', ', $missing),
+            ]);
             return;
         }
 

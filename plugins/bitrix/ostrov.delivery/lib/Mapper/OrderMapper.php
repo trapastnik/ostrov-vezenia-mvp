@@ -15,6 +15,7 @@ class OrderMapper
         $recipientEmail = (string)($order->getField('USER_EMAIL') ?? '');
         $recipientAddress = (string)($propertyCollection->getAddress()?->getValue() ?? '');
         $postalCode = (string)(self::findProperty($propertyCollection, ['ZIP', 'POSTAL_CODE', 'INDEX']) ?? '');
+        // Passport data — required by customs API for shipment clearance
         $passportSeries = (string)(self::findProperty($propertyCollection, ['PASSPORT_SERIES', 'PASPORT_SER']) ?? '');
         $passportNumber = (string)(self::findProperty($propertyCollection, ['PASSPORT_NUMBER', 'PASPORT_NUM']) ?? '');
 
@@ -45,7 +46,7 @@ class OrderMapper
         }
 
         return [
-            'external_order_id' => (string)$order->getField('ACCOUNT_NUMBER'),
+            'external_order_id' => 'BX-' . (string)$order->getField('ACCOUNT_NUMBER'),
             'recipient' => [
                 'name' => $recipientName,
                 'phone' => $recipientPhone,

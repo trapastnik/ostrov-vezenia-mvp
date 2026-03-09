@@ -53,8 +53,8 @@ http://localhost:8000/shop
 - **SSH:** `ssh -p 49222 root@212.113.117.186` (или `ssh ostrov` если настроен ~/.ssh/config)
 - **OS:** Ubuntu 24.04 LTS
 - **CPU:** 2 vCPU
-- **RAM:** 2 GB
-- **SSD:** 29 GB
+- **RAM:** 4 GB
+- **SSD:** 48 GB
 - **Провайдер:** Timeweb Cloud
 
 ### Домены
@@ -132,14 +132,25 @@ curl https://api.ostrov-vezeniya.ru/api/v1/delivery/calculate \
   -d '{"postal_code":"101000","weight_grams":1000,"total_amount_kopecks":100000}'
 ```
 
-### docker-compose.yml (production)
+### docker-compose.prod.yml
 
 ```yaml
 services:
   backend:
     build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     env_file: .env
-    depends_on: [db, redis]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     restart: always
 
   db:
@@ -150,33 +161,48 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ostrov"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: always
 
   redis:
     image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: always
 
-  worker:
+  celery_worker:
     build: ./backend
-    command: celery -A app.workers.celery_app worker -l info
+    command: celery -A app.workers.celery_app worker --loglevel=info
     env_file: .env
-    depends_on: [db, redis]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
 
   nginx:
     image: nginx:alpine
-    ports: ["80:80", "443:443"]
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./admin/dist:/usr/share/nginx/html/admin
-      - certbot_data:/etc/letsencrypt
-    depends_on: [backend]
+      - ./nginx/prod.conf:/etc/nginx/conf.d/default.conf
+      - ./admin/dist:/usr/share/nginx/html
+    depends_on:
+      backend:
+        condition: service_healthy   # nginx ждёт пока backend пройдёт healthcheck
     restart: always
 
 volumes:
   postgres_data:
-  certbot_data:
 ```
+
+**Порядок запуска:** db (healthy) + redis (healthy) → backend (healthy) → nginx. Это устраняет 502 при рестарте.
 
 ### SSL (Let's Encrypt)
 
@@ -223,19 +249,29 @@ gunzip < /backups/ostrov_20260217.sql.gz | docker compose exec -T db psql -U ost
 ### Логи
 
 ```bash
-docker compose logs -f backend    # Логи backend
-docker compose logs -f worker     # Логи Celery
-docker compose logs -f nginx      # Логи Nginx
+docker compose -f docker-compose.prod.yml logs -f backend        # Логи backend
+docker compose -f docker-compose.prod.yml logs -f celery_worker  # Логи Celery
+docker compose -f docker-compose.prod.yml logs -f nginx          # Логи Nginx
+```
+
+### Проверка статуса
+
+```bash
+# Все контейнеры (с healthcheck)
+docker ps --format 'table {{.Names}}\t{{.Status}}'
+
+# Backend healthcheck
+docker inspect ostrov-vezeniya-backend-1 --format '{{.State.Health.Status}}'
 ```
 
 ### Обновление
 
 ```bash
-cd ostrov-vezenia-mvp
+cd /opt/ostrov-vezeniya
 git pull
-docker compose build
-docker compose up -d
-docker compose exec backend alembic upgrade head
+docker compose -f docker-compose.prod.yml build backend celery_worker
+docker compose -f docker-compose.prod.yml up -d
+# nginx автоматически дождётся backend healthcheck
 ```
 
 ---
