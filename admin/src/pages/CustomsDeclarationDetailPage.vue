@@ -420,11 +420,17 @@ onUnmounted(() => {
               Скачать
             </a>
           </div>
-          <iframe
-            :src="pdfUrl"
+          <object
+            :data="pdfUrl"
+            type="application/pdf"
             class="w-full border border-gray-200 rounded-xl"
             style="height: calc(100vh - 300px); min-height: 600px;"
-          />
+          >
+            <p class="p-8 text-center text-gray-500">
+              Браузер не поддерживает встроенный просмотр PDF.
+              <a :href="pdfUrl" :download="`dteg-${declaration!.number}.pdf`" class="text-blue-600 hover:underline">Скачать PDF</a>
+            </p>
+          </object>
         </div>
       </div>
     </template>
