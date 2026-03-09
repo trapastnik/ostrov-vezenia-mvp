@@ -1,9 +1,11 @@
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import async_session
+from app.core.dependencies import get_db, verify_api_key
 from app.models.order import Order
+from app.models.shop import Shop
 from app.models.tracking_event import TrackingEvent
 from app.models.shipment_group import ShipmentGroup
 
@@ -31,7 +33,7 @@ class TrackingResponse(BaseModel):
     events: list[TrackingEventOut]
 
 
-async def _build_tracking_response(order: Order, session) -> TrackingResponse:
+async def _build_tracking_response(order: Order, session: AsyncSession) -> TrackingResponse:
     """Собирает TrackingResponse для заказа."""
     # Загружаем TrackingEvent по order_id (а не только по track_number)
     events_result = await session.execute(
@@ -72,42 +74,54 @@ async def _build_tracking_response(order: Order, session) -> TrackingResponse:
 
 
 @router.get("/search/{query}", response_model=TrackingResponse)
-async def search_tracking(query: str):
-    """Поиск по номеру заказа магазина, трек-номеру ПР или внутреннему трек-номеру."""
-    async with async_session() as session:
-        result = await session.execute(
-            select(Order).where(
-                or_(
-                    Order.external_order_id == query,
-                    Order.track_number == query,
-                    Order.internal_track_number == query,
-                )
-            )
+async def search_tracking(
+    query: str,
+    shop: Shop = Depends(verify_api_key),
+    db: AsyncSession = Depends(get_db),
+):
+    """Поиск по номеру заказа магазина, трек-номеру ПР или внутреннему трек-номеру.
+    Магазин видит только свои заказы (авторизация по X-API-Key)."""
+    result = await db.execute(
+        select(Order).where(
+            Order.shop_id == shop.id,
+            or_(
+                Order.external_order_id == query,
+                Order.track_number == query,
+                Order.internal_track_number == query,
+            ),
         )
-        order = result.scalar_one_or_none()
+    )
+    order = result.scalar_one_or_none()
 
-        if order is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Заказ «{query}» не найден",
-            )
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Заказ «{query}» не найден",
+        )
 
-        return await _build_tracking_response(order, session)
+    return await _build_tracking_response(order, db)
 
 
 @router.get("/{track_number}", response_model=TrackingResponse)
-async def get_tracking(track_number: str):
-    """Трекинг по внутреннему трек-номеру (OV-YYYYMMDD-XXXXX)."""
-    async with async_session() as session:
-        result = await session.execute(
-            select(Order).where(Order.internal_track_number == track_number)
+async def get_tracking(
+    track_number: str,
+    shop: Shop = Depends(verify_api_key),
+    db: AsyncSession = Depends(get_db),
+):
+    """Трекинг по внутреннему трек-номеру (OV-YYYYMMDD-XXXXX).
+    Магазин видит только свои заказы (авторизация по X-API-Key)."""
+    result = await db.execute(
+        select(Order).where(
+            Order.shop_id == shop.id,
+            Order.internal_track_number == track_number,
         )
-        order = result.scalar_one_or_none()
+    )
+    order = result.scalar_one_or_none()
 
-        if order is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Трек-номер {track_number} не найден",
-            )
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Трек-номер {track_number} не найден",
+        )
 
-        return await _build_tracking_response(order, session)
+    return await _build_tracking_response(order, db)

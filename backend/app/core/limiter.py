@@ -16,5 +16,11 @@ def get_real_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-# Redis используется как общее хранилище счётчиков для всех uvicorn-воркеров
-limiter = Limiter(key_func=get_real_ip, storage_uri=settings.REDIS_URL)
+# Redis используется как общее хранилище счётчиков для всех uvicorn-воркеров.
+# Глобальный лимит: 120 запросов/мин на IP (admin-эндпоинты, API).
+# Login имеет более строгий лимит (10/мин), заданный явно на эндпоинте.
+limiter = Limiter(
+    key_func=get_real_ip,
+    storage_uri=settings.REDIS_URL,
+    default_limits=["120/minute"],
+)

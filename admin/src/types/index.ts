@@ -185,7 +185,7 @@ export interface Shop {
   id: string
   name: string
   domain: string
-  api_key: string
+  api_key?: string
   webhook_url: string | null
   customs_fee_kopecks: number
   sender_postal_code: string

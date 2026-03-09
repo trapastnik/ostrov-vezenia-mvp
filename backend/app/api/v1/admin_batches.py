@@ -29,9 +29,9 @@ router = APIRouter(prefix="/admin/batches", tags=["admin-batches"])
 
 
 def _generate_batch_number() -> str:
-    import random
+    import secrets
     now = datetime.now(timezone.utc)
-    suffix = random.randint(100, 999)
+    suffix = secrets.token_hex(4).upper()
     return f"B-{now.strftime('%Y%m%d')}-{now.strftime('%H%M%S')}-{suffix}"
 
 

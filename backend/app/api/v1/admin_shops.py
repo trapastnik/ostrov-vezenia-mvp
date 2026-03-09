@@ -9,7 +9,7 @@ from app.core.dependencies import get_db, require_admin
 from app.core.security import generate_api_key
 from app.models.operator import Operator
 from app.models.shop import Shop
-from app.schemas.shop import ShopCreate, ShopResponse, ShopUpdate
+from app.schemas.shop import ShopCreate, ShopCreateResponse, ShopResponse, ShopUpdate
 
 router = APIRouter(prefix="/admin/shops", tags=["admin-shops"])
 
@@ -36,12 +36,13 @@ async def list_shops(
     }
 
 
-@router.post("", response_model=ShopResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ShopCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_shop(
     body: ShopCreate,
     operator: Operator = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
+    """Создание магазина. API-ключ возвращается ТОЛЬКО в этом ответе."""
     existing = await db.execute(select(Shop).where(Shop.domain == body.domain))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Shop with this domain already exists")
@@ -57,7 +58,7 @@ async def create_shop(
     db.add(shop)
     await db.commit()
     await db.refresh(shop)
-    return ShopResponse.model_validate(shop)
+    return ShopCreateResponse.model_validate(shop)
 
 
 @router.get("/{shop_id}", response_model=ShopResponse)

@@ -100,7 +100,7 @@ onMounted(load)
           >
             <td class="px-5 py-3 text-sm font-medium text-gray-800">{{ shop.name }}</td>
             <td class="px-5 py-3 text-sm text-gray-600">{{ shop.domain }}</td>
-            <td class="px-5 py-3 text-sm text-gray-400 font-mono">{{ shop.api_key.slice(0, 12) }}...</td>
+            <td class="px-5 py-3 text-sm text-gray-400 font-mono">{{ shop.api_key ? shop.api_key.slice(0, 12) + '...' : '***' }}</td>
             <td class="px-5 py-3 text-sm text-gray-700">{{ (shop.customs_fee_kopecks / 100).toFixed(0) }} &#8381;</td>
             <td class="px-5 py-3">
               <span :class="shop.is_active ? 'text-green-600' : 'text-red-600'" class="text-sm">

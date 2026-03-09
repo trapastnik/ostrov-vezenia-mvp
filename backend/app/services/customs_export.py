@@ -2,12 +2,24 @@
 import csv
 import io
 import uuid
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.customs_declaration import CustomsDeclaration
+
+# Символы, которые Excel/LibreOffice интерпретируют как начало формулы
+_CSV_INJECTION_CHARS = ("=", "+", "-", "@", "\t", "\r", "\n")
+
+
+def _sanitize_csv_value(value: Any) -> Any:
+    """Экранирование значений для защиты от CSV-injection (formula injection).
+    Если строка начинается с опасного символа, добавляем апостроф-префикс."""
+    if isinstance(value, str) and value and value[0] in _CSV_INJECTION_CHARS:
+        return f"'{value}"
+    return value
 
 
 async def _get_declaration(db: AsyncSession, declaration_id: uuid.UUID) -> CustomsDeclaration:
@@ -90,7 +102,7 @@ async def generate_csv(db: AsyncSession, declaration_id: uuid.UUID) -> io.String
                 ratio = declaration.total_value_usd_cents / declaration.total_value_kopecks
                 value_usd = round(item["price_kopecks"] * qty * ratio / 100, 2)
 
-            writer.writerow([
+            writer.writerow([_sanitize_csv_value(v) for v in [
                 declaration.number,
                 "4000",  # Импорт для внутреннего потребления
                 waybill_seq,
@@ -116,7 +128,7 @@ async def generate_csv(db: AsyncSession, declaration_id: uuid.UUID) -> io.String
                 f"RUB / {value_rub:.2f}",
                 customs_value_rub,
                 value_usd,
-            ])
+            ]])
 
     # Итоговая строка
     total_weight_kg = round(declaration.total_weight_grams / 1000, 3)

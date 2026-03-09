@@ -116,12 +116,13 @@ onMounted(load)
             </div>
             <div>
               <dt class="text-gray-500 mb-1">API ключ</dt>
-              <dd class="flex items-center gap-2">
+              <dd v-if="shop.api_key" class="flex items-center gap-2">
                 <code class="text-xs bg-gray-100 px-2 py-1 rounded font-mono break-all">{{ shop.api_key }}</code>
                 <button @click="copyApiKey" class="text-xs text-blue-600 hover:underline cursor-pointer">
                   {{ copied ? 'Скопировано' : 'Копировать' }}
                 </button>
               </dd>
+              <dd v-else class="text-gray-400 text-xs">Скрыт (показывается только при создании)</dd>
             </div>
             <div>
               <dt class="text-gray-500 mb-1">Индекс отправки</dt>

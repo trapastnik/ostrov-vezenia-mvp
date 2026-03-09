@@ -81,7 +81,10 @@ async def change_order_status(
     comment: str | None = None,
 ) -> Order:
     result = await db.execute(
-        select(Order).where(Order.id == order_id).options(selectinload(Order.shop))
+        select(Order)
+        .where(Order.id == order_id)
+        .options(selectinload(Order.shop))
+        .with_for_update()
     )
     order = result.scalar_one_or_none()
     if not order:

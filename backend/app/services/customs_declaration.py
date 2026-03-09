@@ -1,5 +1,6 @@
 """Бизнес-логика таможенных деклараций ДТЭГ (Решение ЕЭК №142)."""
 import copy
+import secrets
 import uuid
 from datetime import datetime, timezone
 
@@ -44,7 +45,8 @@ MAX_ORDER_WEIGHT_GRAMS = 31000
 
 def _generate_declaration_number() -> str:
     now = datetime.now(timezone.utc)
-    return f"DTEG-{now.strftime('%Y%m%d')}-{now.strftime('%H%M%S')}"
+    suffix = secrets.token_hex(4).upper()
+    return f"DTEG-{now.strftime('%Y%m%d')}-{now.strftime('%H%M%S')}-{suffix}"
 
 
 async def get_company_settings(db: AsyncSession) -> CompanySettings:
@@ -151,13 +153,16 @@ async def create_declaration(
 
 
 async def get_declaration(
-    db: AsyncSession, declaration_id: uuid.UUID
+    db: AsyncSession, declaration_id: uuid.UUID, *, for_update: bool = False
 ) -> CustomsDeclaration:
-    result = await db.execute(
+    stmt = (
         select(CustomsDeclaration)
         .where(CustomsDeclaration.id == declaration_id)
         .options(selectinload(CustomsDeclaration.orders))
     )
+    if for_update:
+        stmt = stmt.with_for_update()
+    result = await db.execute(stmt)
     declaration = result.scalar_one_or_none()
     if not declaration:
         raise HTTPException(404, "Декларация не найдена")
@@ -170,7 +175,7 @@ async def change_declaration_status(
     new_status: str,
     fts_reference: str | None = None,
 ) -> CustomsDeclaration:
-    declaration = await get_declaration(db, declaration_id)
+    declaration = await get_declaration(db, declaration_id, for_update=True)
 
     allowed = DECLARATION_ALLOWED_TRANSITIONS.get(declaration.status, [])
     if new_status not in allowed:
