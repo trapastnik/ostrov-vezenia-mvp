@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.grouping_settings import GroupingSettings
 from app.models.order import Order
+from app.models.order_status_history import OrderStatusHistory
 from app.models.shipment_group import ShipmentGroup
 from app.models.tracking_event import TrackingEvent
 from app.services.hub_router import get_hub_for_postal_code, HUB_REGISTRY
@@ -102,7 +103,18 @@ class GroupingOptimizer:
         for order in decision.orders:
             order.shipment_group_id = group.id
             order.internal_track_number = self._generate_track_number(order)
+
+            old_status = order.status
             order.status = "awaiting_pickup"
+
+            # Записываем историю статуса (аналог change_order_status, но без commit)
+            history = OrderStatusHistory(
+                order_id=order.id,
+                old_status=old_status,
+                new_status="awaiting_pickup",
+                comment=f"Группировка: {group_number} → {group.hub_name}",
+            )
+            self._session.add(history)
 
             event = TrackingEvent(
                 order_id=order.id,

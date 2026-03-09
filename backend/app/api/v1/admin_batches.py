@@ -25,8 +25,10 @@ router = APIRouter(prefix="/admin/batches", tags=["admin-batches"])
 
 
 def _generate_batch_number() -> str:
+    import random
     now = datetime.now(timezone.utc)
-    return f"B-{now.strftime('%Y%m%d')}-{now.strftime('%H%M%S')}"
+    suffix = random.randint(100, 999)
+    return f"B-{now.strftime('%Y%m%d')}-{now.strftime('%H%M%S')}-{suffix}"
 
 
 BATCH_TRANSITIONS: dict[str, str] = {

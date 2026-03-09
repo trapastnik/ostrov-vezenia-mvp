@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.dependencies import get_db, verify_api_key
+from app.models.company_settings import CompanySettings
 from app.models.order import Order
 from app.models.shop import Shop
 from app.schemas.order import (
@@ -33,7 +34,13 @@ async def create_new_order(
 
     pochta = request.app.state.pochta_client
     service = DeliveryService(pochta)
-    calc = await service.calculate(shop, body.recipient.postal_code, total_weight, total_amount)
+
+    # Актуальный курс EUR из company_settings (обновляется из ЦБ РФ)
+    cs_result = await db.execute(select(CompanySettings).where(CompanySettings.scope == "global"))
+    cs = cs_result.scalar_one_or_none()
+    eur_rate = cs.eur_rate_kopecks if cs else None
+
+    calc = await service.calculate(shop, body.recipient.postal_code, total_weight, total_amount, eur_rate_kopecks=eur_rate)
 
     if not calc.available:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Delivery unavailable: {calc.rejection_reason}")

@@ -21,10 +21,13 @@ class DeliveryService:
         self._pochta = pochta
 
     async def calculate(
-        self, shop: Shop, postal_code: str, weight_grams: int, total_amount_kopecks: int
+        self, shop: Shop, postal_code: str, weight_grams: int, total_amount_kopecks: int,
+        eur_rate_kopecks: int | None = None,
     ) -> DeliveryCalculation:
         # Лимит 200 EUR на посылку (Калининградский эксперимент, ПП №1223)
-        max_value_kopecks = settings.MAX_PACKAGE_VALUE_EUR * settings.EUR_RATE_KOPECKS
+        # Курс берётся из company_settings (БД), fallback на config (.env)
+        rate = eur_rate_kopecks or settings.EUR_RATE_KOPECKS
+        max_value_kopecks = settings.MAX_PACKAGE_VALUE_EUR * rate
 
         if total_amount_kopecks > max_value_kopecks:
             return DeliveryCalculation(
