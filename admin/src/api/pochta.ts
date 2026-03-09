@@ -116,3 +116,30 @@ export async function getBalance(): Promise<BalanceResult> {
   const { data } = await api.get('/admin/pochta/balance')
   return data
 }
+
+// --- Shipment creation ---
+
+export interface ShipmentResult {
+  order_id: string
+  pochta_id: number
+  barcode: string
+  message: string
+}
+
+export interface BatchShipmentsResult {
+  created: ShipmentResult[]
+  errors: Array<{ order_id: string; external_order_id: string; error: string }>
+  total: number
+  success_count: number
+  error_count: number
+}
+
+export async function createShipment(orderId: string): Promise<ShipmentResult> {
+  const { data } = await api.post('/admin/pochta/create-shipment', { order_id: orderId })
+  return data
+}
+
+export async function createBatchShipments(batchId: string): Promise<BatchShipmentsResult> {
+  const { data } = await api.post(`/admin/pochta/batch/${batchId}/create-shipments`)
+  return data
+}

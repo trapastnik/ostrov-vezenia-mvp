@@ -1,10 +1,17 @@
 import logging
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
+from app.core.database import async_session
 from app.core.dependencies import get_current_operator
+from app.models.batch import Batch
 from app.models.operator import Operator
+from app.models.order import Order
+from app.services.order import change_order_status
 
 logger = logging.getLogger(__name__)
 
@@ -279,3 +286,198 @@ async def get_balance(
             message="Баланс недоступен: для этого аккаунта не подключён договор на отправку. Обратитесь на otpravka.pochta.ru",
         )
     return BalanceResponse(balance_kopecks=balance, available=True)
+
+
+# --- Shipment helpers ---
+
+
+async def _transition_to_shipped(
+    session, order_id: uuid.UUID, operator_id: uuid.UUID, barcode: str
+) -> None:
+    """Переводит заказ в статус shipped, проходя через промежуточные статусы."""
+    # Перечитываем заказ, чтобы узнать текущий статус
+    result = await session.execute(select(Order).where(Order.id == order_id))
+    order = result.scalar_one_or_none()
+    if not order or order.status == "shipped":
+        return
+
+    # customs_cleared → awaiting_carrier → shipped
+    if order.status == "customs_cleared":
+        await change_order_status(
+            session, order_id, "awaiting_carrier",
+            changed_by=operator_id,
+            comment="Подготовка к отправке (Почта России)",
+        )
+
+    # awaiting_carrier → shipped
+    result2 = await session.execute(select(Order).where(Order.id == order_id))
+    order2 = result2.scalar_one_or_none()
+    if order2 and order2.status == "awaiting_carrier":
+        await change_order_status(
+            session, order_id, "shipped",
+            changed_by=operator_id,
+            comment=f"Создано отправление ПР: {barcode}",
+        )
+
+
+# --- Shipment creation ---
+
+
+class ShipmentRequest(BaseModel):
+    order_id: str
+
+
+class ShipmentResponse(BaseModel):
+    order_id: str
+    pochta_id: int
+    barcode: str  # Трек-номер ПР
+    message: str
+
+
+class BatchShipmentsResponse(BaseModel):
+    created: list[ShipmentResponse]
+    errors: list[dict]
+    total: int
+    success_count: int
+    error_count: int
+
+
+@router.post("/create-shipment", response_model=ShipmentResponse)
+async def create_shipment(
+    body: ShipmentRequest,
+    request: Request,
+    operator: Operator = Depends(get_current_operator),
+):
+    """Создать отправление в Почте России для одного заказа."""
+    pochta = request.app.state.pochta_client
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(Order).where(Order.id == uuid.UUID(body.order_id))
+        )
+        order = result.scalar_one_or_none()
+
+        if not order:
+            raise HTTPException(status_code=404, detail="Заказ не найден")
+
+        if order.track_number:
+            raise HTTPException(status_code=400, detail=f"Заказ уже имеет трек-номер: {order.track_number}")
+
+        # Проверяем статус — отправление можно создать после таможни
+        allowed_statuses = {"customs_cleared", "awaiting_carrier"}
+        if order.status not in allowed_statuses:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Нельзя создать отправление для статуса «{order.status}». Нужен: customs_cleared или awaiting_carrier",
+            )
+
+        try:
+            shipment_result, log = await pochta.create_shipment(
+                recipient_name=order.recipient_name,
+                recipient_address=order.recipient_address,
+                recipient_postal_code=order.recipient_postal_code,
+                recipient_phone=order.recipient_phone,
+                weight_grams=order.total_weight_grams,
+                order_num=order.external_order_id,
+                declared_value_kopecks=order.total_amount_kopecks,
+            )
+        except Exception as e:
+            logger.error("Pochta create_shipment error: %s", e, exc_info=True)
+            raise HTTPException(status_code=502, detail=f"Ошибка Почты России: {e}")
+
+        # Сохраняем трек-номер
+        order.track_number = shipment_result.barcode
+        await session.commit()
+
+        # Переводим статус: customs_cleared → awaiting_carrier → shipped
+        try:
+            await _transition_to_shipped(session, order.id, operator.id, shipment_result.barcode)
+        except Exception:
+            logger.warning("Could not change status to shipped for order %s", order.id)
+
+    return ShipmentResponse(
+        order_id=str(order.id),
+        pochta_id=shipment_result.pochta_id,
+        barcode=shipment_result.barcode,
+        message=f"Отправление создано, трек: {shipment_result.barcode}",
+    )
+
+
+@router.post("/batch/{batch_id}/create-shipments", response_model=BatchShipmentsResponse)
+async def create_batch_shipments(
+    batch_id: str,
+    request: Request,
+    operator: Operator = Depends(get_current_operator),
+):
+    """Массовое создание отправлений для всех заказов в партии."""
+    pochta = request.app.state.pochta_client
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(Batch)
+            .where(Batch.id == uuid.UUID(batch_id))
+            .options(selectinload(Batch.orders))
+        )
+        batch = result.scalar_one_or_none()
+
+        if not batch:
+            raise HTTPException(status_code=404, detail="Партия не найдена")
+
+        created: list[ShipmentResponse] = []
+        errors: list[dict] = []
+
+        for order in batch.orders:
+            # Пропускаем заказы с уже присвоенным трек-номером
+            if order.track_number:
+                continue
+
+            # Пропускаем заказы в неподходящем статусе
+            if order.status not in {"customs_cleared", "awaiting_carrier"}:
+                errors.append({
+                    "order_id": str(order.id),
+                    "external_order_id": order.external_order_id,
+                    "error": f"Неподходящий статус: {order.status}",
+                })
+                continue
+
+            try:
+                shipment_result, log = await pochta.create_shipment(
+                    recipient_name=order.recipient_name,
+                    recipient_address=order.recipient_address,
+                    recipient_postal_code=order.recipient_postal_code,
+                    recipient_phone=order.recipient_phone,
+                    weight_grams=order.total_weight_grams,
+                    order_num=order.external_order_id,
+                    declared_value_kopecks=order.total_amount_kopecks,
+                )
+
+                order.track_number = shipment_result.barcode
+                await session.commit()
+
+                # Переводим статус: customs_cleared → awaiting_carrier → shipped
+                try:
+                    await _transition_to_shipped(session, order.id, operator.id, shipment_result.barcode)
+                except Exception:
+                    pass
+
+                created.append(ShipmentResponse(
+                    order_id=str(order.id),
+                    pochta_id=shipment_result.pochta_id,
+                    barcode=shipment_result.barcode,
+                    message=f"Трек: {shipment_result.barcode}",
+                ))
+            except Exception as e:
+                logger.error("Shipment creation failed for order %s: %s", order.id, e)
+                errors.append({
+                    "order_id": str(order.id),
+                    "external_order_id": order.external_order_id,
+                    "error": str(e),
+                })
+
+    return BatchShipmentsResponse(
+        created=created,
+        errors=errors,
+        total=len(created) + len(errors),
+        success_count=len(created),
+        error_count=len(errors),
+    )

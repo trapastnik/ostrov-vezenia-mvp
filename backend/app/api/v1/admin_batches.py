@@ -1,3 +1,4 @@
+import logging
 import math
 from datetime import datetime, timezone
 from uuid import UUID
@@ -19,7 +20,10 @@ from app.schemas.batch import (
     BatchResponse,
     BatchStatusUpdate,
 )
+from app.services.customs_declaration import create_declaration
 from app.services.order import change_order_status
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin/batches", tags=["admin-batches"])
 
@@ -50,6 +54,17 @@ BATCH_TIMESTAMP_FIELD: dict[str, str] = {
 }
 
 
+def _batch_to_response(batch: Batch) -> BatchResponse:
+    """Конвертация Batch → BatchResponse с данными декларации."""
+    resp = BatchResponse.model_validate(batch)
+    decl = batch.customs_declaration
+    if decl:
+        resp.customs_declaration_id = decl.id
+        resp.customs_declaration_number = decl.number
+        resp.customs_declaration_status = decl.status
+    return resp
+
+
 @router.get("", response_model=BatchListResponse)
 async def list_batches(
     page: int = Query(1, ge=1),
@@ -60,11 +75,17 @@ async def list_batches(
     total_result = await db.execute(select(func.count(Batch.id)))
     total = total_result.scalar()
 
-    result = await db.execute(select(Batch).order_by(Batch.created_at.desc()).offset((page - 1) * per_page).limit(per_page))
+    result = await db.execute(
+        select(Batch)
+        .options(selectinload(Batch.customs_declaration))
+        .order_by(Batch.created_at.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+    )
     batches = result.scalars().all()
 
     return BatchListResponse(
-        items=[BatchResponse.model_validate(b) for b in batches],
+        items=[_batch_to_response(b) for b in batches],
         total=total,
         page=page,
         per_page=per_page,
@@ -101,11 +122,33 @@ async def create_batch(
 
     for order in orders:
         order.batch_id = batch.id
-        await change_order_status(db, order.id, "batch_forming", changed_by=operator.id, comment=f"Batch {batch.number}")
+        await change_order_status(db, order.id, "batch_forming", changed_by=operator.id, comment=f"Партия {batch.number}")
+
+    # Авто-создание черновика декларации
+    declaration = None
+    try:
+        declaration = await create_declaration(
+            db,
+            order_ids=body.order_ids,
+            goods_location=body.goods_location,
+            operator_note=f"Автоматически из партии {batch.number}",
+        )
+        declaration.batch_id = batch.id
+        logger.info("Declaration %s auto-created for batch %s", declaration.number, batch.number)
+    except Exception:
+        # Декларация не должна блокировать создание партии
+        # (например, если нет company_settings)
+        logger.exception("Failed to auto-create declaration for batch %s", batch.number)
 
     await db.commit()
     await db.refresh(batch)
-    return BatchResponse.model_validate(batch)
+
+    resp = BatchResponse.model_validate(batch)
+    if declaration:
+        resp.customs_declaration_id = declaration.id
+        resp.customs_declaration_number = declaration.number
+        resp.customs_declaration_status = declaration.status
+    return resp
 
 
 @router.get("/{batch_id}", response_model=BatchDetailResponse)
@@ -115,7 +158,9 @@ async def get_batch(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Batch).where(Batch.id == batch_id).options(selectinload(Batch.orders))
+        select(Batch)
+        .where(Batch.id == batch_id)
+        .options(selectinload(Batch.orders), selectinload(Batch.customs_declaration))
     )
     batch = result.scalar_one_or_none()
     if not batch:
@@ -137,7 +182,7 @@ async def get_batch(
     ]
 
     return BatchDetailResponse(
-        **BatchResponse.model_validate(batch).model_dump(),
+        **_batch_to_response(batch).model_dump(),
         orders=orders_out,
     )
 
@@ -150,7 +195,9 @@ async def update_batch_status(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Batch).where(Batch.id == batch_id).options(selectinload(Batch.orders))
+        select(Batch)
+        .where(Batch.id == batch_id)
+        .options(selectinload(Batch.orders), selectinload(Batch.customs_declaration))
     )
     batch = result.scalar_one_or_none()
     if not batch:
@@ -185,4 +232,4 @@ async def update_batch_status(
 
     await db.commit()
     await db.refresh(batch)
-    return BatchResponse.model_validate(batch)
+    return _batch_to_response(batch)

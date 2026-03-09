@@ -36,6 +36,14 @@ class ApiClient
         return $this->get('/api/v1/orders/' . urlencode($orderId) . '/status');
     }
 
+    /**
+     * Получить трекинг заказа по номеру (external_order_id, трек ПР или OV-номер).
+     */
+    public function getTracking(string $query): array
+    {
+        return $this->get('/api/v1/track/search/' . urlencode($query));
+    }
+
     private function post(string $path, array $payload): array
     {
         $client = $this->buildClient();

@@ -30,6 +30,7 @@ class ostrov_delivery extends CModule
         }
 
         RegisterModule($this->MODULE_ID);
+        $this->InstallFiles();
         $this->registerEvents();
         $this->createOrderProperty();
         $this->createPassportProperties();
@@ -42,7 +43,30 @@ class ostrov_delivery extends CModule
     {
         $this->unregisterDeliveryService();
         $this->unregisterEvents();
+        $this->UnInstallFiles();
         UnRegisterModule($this->MODULE_ID);
+
+        return true;
+    }
+
+    public function InstallFiles(): bool
+    {
+        $srcDir = __DIR__ . '/components';
+        $dstDir = $_SERVER['DOCUMENT_ROOT'] . '/bitrix/components';
+
+        if (is_dir($srcDir)) {
+            CopyDirFiles($srcDir, $dstDir, true, true);
+        }
+
+        return true;
+    }
+
+    public function UnInstallFiles(): bool
+    {
+        $componentDir = $_SERVER['DOCUMENT_ROOT'] . '/bitrix/components/ostrov';
+        if (is_dir($componentDir)) {
+            Directory::deleteDirectory($componentDir);
+        }
 
         return true;
     }

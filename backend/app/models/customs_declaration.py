@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, generate_uuid
@@ -14,6 +14,9 @@ class CustomsDeclaration(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=generate_uuid)
     number: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
+
+    # Связь с партией (1 партия → 1 декларация, опционально)
+    batch_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("batches.id"), nullable=True)
 
     # draft → ready → submitted → accepted / rejected
     status: Mapped[str] = mapped_column(String(30), default="draft", nullable=False)
@@ -49,3 +52,4 @@ class CustomsDeclaration(Base, TimestampMixin):
     fts_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     orders = relationship("Order", back_populates="customs_declaration")
+    batch = relationship("Batch", back_populates="customs_declaration", foreign_keys=[batch_id])

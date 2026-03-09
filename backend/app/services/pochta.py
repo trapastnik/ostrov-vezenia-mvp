@@ -72,6 +72,12 @@ class PhoneResult:
     quality_code: str
 
 
+@dataclass
+class ShipmentResult:
+    pochta_id: int       # ID отправления в Почте России
+    barcode: str         # Трек-номер (ШПИ)
+
+
 GOOD_QUALITY_CODES = {"GOOD", "POSTAL_BOX", "ON_DEMAND", "UNDEF_05"}
 GOOD_VALIDATION_CODES = {"VALIDATED", "OVERRIDDEN", "CONFIRMED_MANUALLY"}
 
@@ -313,3 +319,78 @@ class PochtaClient:
             contract_available=contract_available,
             contract_error=contract_error,
         ), logs
+
+    async def create_shipment(
+        self,
+        recipient_name: str,
+        recipient_address: str,
+        recipient_postal_code: str,
+        recipient_phone: str,
+        weight_grams: int,
+        order_num: str = "",
+        declared_value_kopecks: int = 0,
+        sender_postal_code: str = "236000",
+        mail_type: str = "ONLINE_PARCEL",
+    ) -> tuple[ShipmentResult, RawHttpLog]:
+        """Создание отправления в Почте России (PUT /1.0/user/backlog).
+
+        Возвращает ShipmentResult с ID и трек-номером (barcode).
+        """
+        # Разбираем ФИО
+        parts = recipient_name.strip().split()
+        surname = parts[0] if len(parts) >= 1 else recipient_name
+        name = parts[1] if len(parts) >= 2 else ""
+        middle_name = " ".join(parts[2:]) if len(parts) >= 3 else ""
+
+        # Очищаем телефон для Почты (только цифры, без +)
+        phone_digits = recipient_phone.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
+
+        payload = [
+            {
+                "address-type-to": "DEFAULT",
+                "given-name": name,
+                "house-to": "",
+                "index-to": int(recipient_postal_code),
+                "mail-category": "ORDINARY",
+                "mail-type": mail_type,
+                "mass": weight_grams,
+                "middle-name": middle_name,
+                "order-num": order_num,
+                "place-to": "",
+                "recipient-name": recipient_name,
+                "region-to": "",
+                "street-to": recipient_address,
+                "surname": surname,
+                "tel-address": int(phone_digits) if phone_digits.isdigit() else 0,
+            }
+        ]
+
+        # Если есть объявленная ценность
+        if declared_value_kopecks > 0:
+            payload[0]["insr-value"] = declared_value_kopecks
+
+        url = f"{self.BASE_URL}/user/backlog"
+        t0 = time.monotonic()
+        resp = await self._client.put(url, headers=self._auth_headers(), json=payload)
+        duration_ms = int((time.monotonic() - t0) * 1000)
+        resp.raise_for_status()
+        data = resp.json()
+
+        log = RawHttpLog(
+            method="PUT",
+            url=url,
+            headers=self._safe_headers(),
+            request_body=payload,
+            response_status=resp.status_code,
+            response_body=data,
+            duration_ms=duration_ms,
+        )
+
+        # Ответ: {"result-ids": [12345]} или {"orders": [{"barcode": "...", "result-id": 12345}]}
+        result_ids = data.get("result-ids", [])
+        orders = data.get("orders", [])
+
+        pochta_id = result_ids[0] if result_ids else (orders[0].get("result-id", 0) if orders else 0)
+        barcode = orders[0].get("barcode", "") if orders else ""
+
+        return ShipmentResult(pochta_id=pochta_id, barcode=barcode), log

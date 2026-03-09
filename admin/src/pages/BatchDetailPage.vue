@@ -2,9 +2,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchBatch, changeBatchStatus } from '../api/batches'
+import { createBatchShipments } from '../api/pochta'
 import OrderStatusBadge from '../components/OrderStatusBadge.vue'
 import type { BatchDetail } from '../types'
-import { BATCH_STATUS_LABELS, BATCH_STATUS_COLORS, BATCH_ALLOWED_TRANSITIONS } from '../types'
+import { BATCH_STATUS_LABELS, BATCH_STATUS_COLORS, BATCH_ALLOWED_TRANSITIONS, DECLARATION_STATUS_LABELS, DECLARATION_STATUS_COLORS } from '../types'
 
 const route = useRoute()
 
@@ -14,6 +15,7 @@ const error = ref('')
 const actionMsg = ref('')
 const actionError = ref('')
 const changing = ref(false)
+const creatingShipments = ref(false)
 
 const nextStatus = computed(() => {
   if (!batch.value) return null
@@ -59,6 +61,36 @@ async function handleStatusChange() {
   }
 }
 
+const canCreateShipments = computed(() => {
+  if (!batch.value) return false
+  return ['customs_cleared', 'shipped'].includes(batch.value.status)
+})
+
+async function handleCreateShipments() {
+  if (!batch.value || creatingShipments.value) return
+  creatingShipments.value = true
+  actionMsg.value = ''
+  actionError.value = ''
+  try {
+    const result = await createBatchShipments(batch.value.id)
+    if (result.success_count > 0) {
+      actionMsg.value = `Создано ${result.success_count} отправлений в Почте России`
+    }
+    if (result.error_count > 0) {
+      actionError.value = `Ошибки: ${result.error_count} заказов. ${result.errors.map(e => e.error).join('; ')}`
+    }
+    if (result.success_count === 0 && result.error_count === 0) {
+      actionMsg.value = 'Нет заказов для создания отправлений (возможно, все уже имеют трек-номера)'
+    }
+    await load()
+    setTimeout(() => (actionMsg.value = ''), 5000)
+  } catch (e: any) {
+    actionError.value = e.response?.data?.detail || 'Ошибка создания отправлений'
+  } finally {
+    creatingShipments.value = false
+  }
+}
+
 function formatDate(d: string | null): string {
   if (!d) return '—'
   return new Date(d).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -101,14 +133,24 @@ onMounted(load)
             {{ BATCH_STATUS_LABELS[batch.status] || batch.status }}
           </span>
         </div>
-        <button
-          v-if="nextStatus"
-          @click="handleStatusChange"
-          :disabled="changing"
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {{ changing ? 'Обработка...' : nextStatusLabel }}
-        </button>
+        <div class="flex gap-2">
+          <button
+            v-if="canCreateShipments"
+            @click="handleCreateShipments"
+            :disabled="creatingShipments"
+            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {{ creatingShipments ? 'Создание...' : 'Создать отправления ПР' }}
+          </button>
+          <button
+            v-if="nextStatus"
+            @click="handleStatusChange"
+            :disabled="changing"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {{ changing ? 'Обработка...' : nextStatusLabel }}
+          </button>
+        </div>
       </div>
 
       <!-- Messages -->
@@ -155,6 +197,28 @@ onMounted(load)
             <span class="text-gray-500">Отправлена:</span>
             <span class="ml-1 font-medium">{{ formatDate(batch.shipped_at) }}</span>
           </div>
+        </div>
+      </div>
+
+      <!-- Declaration info -->
+      <div v-if="batch.customs_declaration_id" class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <h3 class="text-sm font-medium text-gray-500">Декларация (ДТЭГ)</h3>
+            <router-link
+              :to="`/customs/${batch.customs_declaration_id}`"
+              class="text-blue-600 hover:text-blue-800 font-semibold"
+            >
+              {{ batch.customs_declaration_number || '—' }}
+            </router-link>
+          </div>
+          <span
+            v-if="batch.customs_declaration_status"
+            class="px-2 py-0.5 rounded-full text-xs font-medium"
+            :class="DECLARATION_STATUS_COLORS[batch.customs_declaration_status] || 'bg-gray-100 text-gray-600'"
+          >
+            {{ DECLARATION_STATUS_LABELS[batch.customs_declaration_status] || batch.customs_declaration_status }}
+          </span>
         </div>
       </div>
 

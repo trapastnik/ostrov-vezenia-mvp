@@ -199,6 +199,9 @@ export interface Batch {
   status: string
   orders_count: number
   total_weight_grams: number
+  customs_declaration_id: string | null
+  customs_declaration_number: string | null
+  customs_declaration_status: string | null
   created_at: string
   customs_presented_at: string | null
   customs_cleared_at: string | null

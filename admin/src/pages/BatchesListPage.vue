@@ -42,6 +42,7 @@ const selectedOrderIds = ref<Set<string>>(new Set())
 const creating = ref(false)
 const createError = ref('')
 const ordersStatusFilter = ref('received_warehouse')
+const goodsLocation = ref('')
 
 const selectedCount = computed(() => selectedOrderIds.value.size)
 
@@ -49,6 +50,7 @@ async function openCreateModal() {
   showCreateModal.value = true
   selectedOrderIds.value = new Set()
   createError.value = ''
+  goodsLocation.value = ''
   ordersPage.value = 1
   ordersStatusFilter.value = 'received_warehouse'
   await loadAvailableOrders()
@@ -95,7 +97,7 @@ async function handleCreate() {
   creating.value = true
   createError.value = ''
   try {
-    const batch = await createBatch(Array.from(selectedOrderIds.value))
+    const batch = await createBatch(Array.from(selectedOrderIds.value), goodsLocation.value || undefined)
     showCreateModal.value = false
     router.push(`/batches/${batch.id}`)
   } catch (e: any) {
@@ -140,6 +142,7 @@ onMounted(load)
             <th class="px-5 py-3">Заказов</th>
             <th class="px-5 py-3">Вес</th>
             <th class="px-5 py-3">Статус</th>
+            <th class="px-5 py-3">Декларация</th>
             <th class="px-5 py-3">Создана</th>
             <th class="px-5 py-3">Отправлена</th>
           </tr>
@@ -162,11 +165,17 @@ onMounted(load)
                 {{ BATCH_STATUS_LABELS[batch.status] || batch.status }}
               </span>
             </td>
+            <td class="px-5 py-3">
+              <span v-if="batch.customs_declaration_number" class="text-xs text-orange-600 font-medium">
+                {{ batch.customs_declaration_number }}
+              </span>
+              <span v-else class="text-xs text-gray-300">—</span>
+            </td>
             <td class="px-5 py-3 text-sm text-gray-500">{{ formatDate(batch.created_at) }}</td>
             <td class="px-5 py-3 text-sm text-gray-500">{{ formatDate(batch.shipped_at) }}</td>
           </tr>
           <tr v-if="batches.length === 0">
-            <td colspan="6" class="px-5 py-8 text-center text-sm text-gray-400">Нет партий</td>
+            <td colspan="7" class="px-5 py-8 text-center text-sm text-gray-400">Нет партий</td>
           </tr>
         </tbody>
       </table>
@@ -188,6 +197,17 @@ onMounted(load)
         <div class="flex-1 overflow-auto p-6">
           <!-- Error -->
           <div v-if="createError" class="mb-4 px-4 py-2 bg-red-50 text-red-700 rounded-lg text-sm">{{ createError }}</div>
+
+          <!-- Goods location for ДТЭГ -->
+          <div class="mb-4">
+            <label class="block text-sm text-gray-600 mb-1">Местоположение товаров (для ДТЭГ)</label>
+            <input
+              v-model="goodsLocation"
+              type="text"
+              placeholder="напр. г. Калининград, ул. Портовая, д. 1, склад 3"
+              class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
           <!-- Status filter for orders -->
           <div class="flex items-center gap-3 mb-4">

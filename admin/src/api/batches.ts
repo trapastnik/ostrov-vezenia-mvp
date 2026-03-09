@@ -11,8 +11,10 @@ export async function fetchBatch(id: string): Promise<BatchDetail> {
   return data
 }
 
-export async function createBatch(orderIds: string[]): Promise<Batch> {
-  const { data } = await api.post('/admin/batches', { order_ids: orderIds })
+export async function createBatch(orderIds: string[], goodsLocation?: string): Promise<Batch> {
+  const payload: Record<string, any> = { order_ids: orderIds }
+  if (goodsLocation) payload.goods_location = goodsLocation
+  const { data } = await api.post('/admin/batches', payload)
   return data
 }
 

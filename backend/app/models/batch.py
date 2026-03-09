@@ -20,3 +20,6 @@ class Batch(Base, TimestampMixin):
     shipped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     orders = relationship("Order", back_populates="batch")
+    customs_declaration = relationship(
+        "CustomsDeclaration", back_populates="batch", uselist=False
+    )

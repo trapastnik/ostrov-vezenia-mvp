@@ -22,6 +22,8 @@ ALTER_STATEMENTS = [
     ("company_settings", "rates_updated_at", "ALTER TABLE company_settings ADD COLUMN rates_updated_at TIMESTAMP WITH TIME ZONE"),
     # customs_declarations: стоимость в евроцентах
     ("customs_declarations", "total_value_eur_cents", "ALTER TABLE customs_declarations ADD COLUMN total_value_eur_cents INTEGER NOT NULL DEFAULT 0"),
+    # customs_declarations: связь с партией
+    ("customs_declarations", "batch_id", "ALTER TABLE customs_declarations ADD COLUMN batch_id UUID REFERENCES batches(id)"),
 ]
 
 
