@@ -223,6 +223,8 @@ onMounted(load)
                   <th class="px-4 py-3 text-center">Товаров</th>
                   <th class="px-4 py-3 text-right">Сумма</th>
                   <th class="px-4 py-3 text-right">Вес</th>
+                  <th class="px-4 py-3">Декларация</th>
+                  <th class="px-4 py-3">Партия</th>
                   <th class="px-4 py-3">Статус</th>
                 </tr>
               </thead>
@@ -247,10 +249,20 @@ onMounted(load)
                   <td class="px-4 py-3 text-sm text-gray-500 text-center">{{ order.items.length }}</td>
                   <td class="px-4 py-3 text-sm text-gray-700 text-right">{{ formatRub(order.total_amount_kopecks) }}</td>
                   <td class="px-4 py-3 text-sm text-gray-700 text-right">{{ (order.total_weight_grams / 1000).toFixed(1) }} кг</td>
+                  <td class="px-4 py-3">
+                    <span v-if="order.customs_declaration_number" class="text-xs text-orange-600 font-medium">
+                      {{ order.customs_declaration_number }}
+                    </span>
+                    <span v-else class="text-xs text-gray-300">—</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span v-if="order.batch_id" class="text-xs text-purple-600 font-medium">Да</span>
+                    <span v-else class="text-xs text-gray-300">—</span>
+                  </td>
                   <td class="px-4 py-3"><OrderStatusBadge :status="order.status" /></td>
                 </tr>
                 <tr v-if="availableOrders.length === 0">
-                  <td colspan="7" class="px-4 py-8 text-center text-sm text-gray-400">Нет заказов с этим статусом</td>
+                  <td colspan="9" class="px-4 py-8 text-center text-sm text-gray-400">Нет заказов с этим статусом</td>
                 </tr>
               </tbody>
             </table>
