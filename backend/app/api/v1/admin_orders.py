@@ -94,4 +94,5 @@ async def update_order_status(
         details={"new_status": body.status, "comment": body.comment},
         ip_address=request.client.host if request.client else None,
     )
+    await db.commit()  # коммит аудит-записи (change_order_status уже закоммитил основное)
     return OrderResponse.model_validate(order)

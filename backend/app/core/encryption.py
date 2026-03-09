@@ -15,17 +15,20 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 _fernet: Fernet | None = None
+_fernet_checked: bool = False
 
 
 def _get_fernet() -> Fernet | None:
-    global _fernet
-    if _fernet is not None:
+    global _fernet, _fernet_checked
+    if _fernet_checked:
         return _fernet
     key = settings.PII_ENCRYPTION_KEY
     if not key:
         logger.warning("PII_ENCRYPTION_KEY not set — passport data stored unencrypted")
+        _fernet_checked = True
         return None
     _fernet = Fernet(key.encode())
+    _fernet_checked = True
     return _fernet
 
 
