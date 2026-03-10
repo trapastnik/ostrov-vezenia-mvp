@@ -51,7 +51,7 @@ const navItems = [
       <button @click="logout" class="mt-2 text-xs text-red-600 hover:text-red-800 cursor-pointer">
         Выйти
       </button>
-      <div class="mt-3 text-xs text-gray-300">v{{ appVersion }}</div>
+      <router-link to="/version" class="mt-3 inline-block text-xs text-gray-300 hover:text-blue-500 transition-colors">v{{ appVersion }}</router-link>
     </div>
   </aside>
 </template>

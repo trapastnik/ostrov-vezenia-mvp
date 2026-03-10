@@ -30,6 +30,7 @@ const router = createRouter({
         { path: 'customs/:id', name: 'customs-detail', component: () => import('../pages/CustomsDeclarationDetailPage.vue') },
         { path: 'groups', name: 'groups', component: () => import('../pages/GroupsPage.vue') },
         { path: 'system-health', name: 'system-health', component: () => import('../pages/SystemHealthPage.vue') },
+        { path: 'version', name: 'version', component: () => import('../pages/VersionPage.vue') },
       ],
     },
   ],
