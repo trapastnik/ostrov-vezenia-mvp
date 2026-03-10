@@ -168,7 +168,7 @@ async def export_pdf_endpoint(
         pdf_buffer,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="dteg-{declaration_id}.pdf"',
+            "Content-Disposition": f'inline; filename="dteg-{declaration_id}.pdf"',
         },
     )
 

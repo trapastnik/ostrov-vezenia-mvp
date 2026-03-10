@@ -78,5 +78,6 @@ export async function fetchDeclarationPdfUrl(id: string): Promise<string> {
   const response = await api.get(`/admin/customs/declarations/${id}/export/pdf`, {
     responseType: 'blob',
   })
-  return window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+  const blob = new Blob([response.data], { type: 'application/pdf' })
+  return window.URL.createObjectURL(blob)
 }
