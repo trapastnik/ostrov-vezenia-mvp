@@ -8,7 +8,20 @@ from app.models.operator import Operator
 
 router = APIRouter(prefix="/admin/version", tags=["admin-version"])
 
-CHANGELOG_PATH = Path(__file__).resolve().parent.parent.parent.parent / "CHANGELOG.md"
+def _find_changelog() -> Path:
+    """Find CHANGELOG.md in multiple possible locations."""
+    candidates = [
+        Path("/app/CHANGELOG.md"),  # Docker: mounted volume
+        Path(__file__).resolve().parent.parent.parent.parent.parent / "CHANGELOG.md",  # Local dev: ostrov-vezeniya/CHANGELOG.md
+        Path.cwd() / "CHANGELOG.md",  # Fallback: current working directory
+    ]
+    for p in candidates:
+        if p.exists():
+            return p
+    return candidates[0]  # Default (will return empty list if not found)
+
+
+CHANGELOG_PATH = _find_changelog()
 
 
 def _parse_changelog() -> list[dict]:

@@ -34,6 +34,8 @@ services:
   backend:
     build: ./backend
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    volumes:
+      - ./CHANGELOG.md:/app/CHANGELOG.md:ro
     environment:
       DATABASE_URL: postgresql+asyncpg://ostrov:${DB_PASSWORD}@db:5432/ostrov
       REDIS_URL: redis://redis:6379/0
